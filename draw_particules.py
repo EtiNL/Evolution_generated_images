@@ -60,7 +60,7 @@ kernel_draw_circles = """
                       }
                 }
         	}
-            color[0] = color[0]/count;
+            color[0] = 255;
             color[1] = color[1] / count;
             color[2] = color[2] / count;
 

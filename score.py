@@ -14,79 +14,82 @@ kernel_score = """
         int pixel_y = idx / im_size ;
         int pixel_x = idx % im_size ;
 
-        for(int c = 0; c < nbr_circles; c++){
+        int c = (threadIdx.y) + blockDim.y * blockIdx.y;
 
-            float color[3]{0,0,0};
-            // getting color
-            int count = 0;
-            int id = (y_coordinates[c])*im_size + x_coordinates[c];
-            color[0] = color[0] + targetIm[3*id];
-            color[1] = color[1] + targetIm[3*id+1];
-            color[2] = color[2] + targetIm[3*id+2];
-            count++;
-            int r = 10;
-            if (radius[c] < r){r = radius[c];}
-            for(int i = 0; i<r; i++){
-                for(int j = 0; j<r; j++){
+        if(c < nbr_circles){
 
-                    int id = (y_coordinates[c]+j)*im_size + x_coordinates[c]+i;
-                    if (i*i+j*j<r*r && id < check && id > 0){
+        float color[3]{0,0,0};
+        // getting color
+        int count = 0;
+        int id = (y_coordinates[c])*im_size + x_coordinates[c];
+        color[0] = color[0] + targetIm[3*id];
+        color[1] = color[1] + targetIm[3*id+1];
+        color[2] = color[2] + targetIm[3*id+2];
+        count++;
+        int r = 10;
+        if (radius[c] < r){r = radius[c];}
+        for(int i = 0; i<r; i++){
+            for(int j = 0; j<r; j++){
 
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                    id = (y_coordinates[c]-j)*im_size + x_coordinates[c]+i;
-                    if (i*i+j*j<r*r && id < check && id > 0){
+                int id = (y_coordinates[c]+j)*im_size + x_coordinates[c]+i;
+                if (i*i+j*j<r*r && id < check && id > 0){
 
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                    id = (y_coordinates[c]-j)*im_size + x_coordinates[c]-i;
+                    color[0] = color[0] + targetIm[3*id];
+                    color[1] = color[1] + targetIm[3*id+1];
+                    color[2] = color[2] + targetIm[3*id+2];
+                    count++;
+                    }
+                id = (y_coordinates[c]-j)*im_size + x_coordinates[c]+i;
+                if (i*i+j*j<r*r && id < check && id > 0){
 
-                    if (i*i+j*j<r*r  && id < check && id > 0){
+                    color[0] = color[0] + targetIm[3*id];
+                    color[1] = color[1] + targetIm[3*id+1];
+                    color[2] = color[2] + targetIm[3*id+2];
+                    count++;
+                    }
+                id = (y_coordinates[c]-j)*im_size + x_coordinates[c]-i;
 
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                    id = (y_coordinates[c]+j)*im_size + x_coordinates[c]-i;
-                    if (i*i+j*j<r*r && id < check && id > 0){
+                if (i*i+j*j<r*r  && id < check && id > 0){
 
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                }
-        	}
-            color[0] = color[0] / count;
-            color[1] = color[1] / count;
-            color[2] = color[2] / count;
+                    color[0] = color[0] + targetIm[3*id];
+                    color[1] = color[1] + targetIm[3*id+1];
+                    color[2] = color[2] + targetIm[3*id+2];
+                    count++;
+                    }
+                id = (y_coordinates[c]+j)*im_size + x_coordinates[c]-i;
+                if (i*i+j*j<r*r && id < check && id > 0){
 
-            float dist_from_center = (pixel_x-x_coordinates[c])*(pixel_x-x_coordinates[c]) + (pixel_y-y_coordinates[c])*(pixel_y-y_coordinates[c]) ;
-            if(idx *3 < check*3 && dist_from_center < radius[c]*radius[c])
-            {
-
-            //assign color
-
-            float color_swap[3]{testIm[idx*3],testIm[idx*3+1],testIm[idx*3+2]};
-
-            testIm[idx*3]= color[0];
-            testIm[idx*3+1]= color[1];
-            testIm[idx*3+2]= color[2];
-
-            score[c*check + idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3;
-
-            testIm[idx*3]= color_swap[0];
-            testIm[idx*3+1]= color_swap[1];
-            testIm[idx*3+2]= color_swap[2];
+                    color[0] = color[0] + targetIm[3*id];
+                    color[1] = color[1] + targetIm[3*id+1];
+                    color[2] = color[2] + targetIm[3*id+2];
+                    count++;
+                    }
             }
-            else { score[c*check + idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3; }
+        }
+        color[0] = color[0] / count;
+        color[1] = color[1] / count;
+        color[2] = color[2] / count;
+
+        float dist_from_center = (pixel_x-x_coordinates[c])*(pixel_x-x_coordinates[c]) + (pixel_y-y_coordinates[c])*(pixel_y-y_coordinates[c]) ;
+        if(idx *3 < check*3 && dist_from_center < radius[c]*radius[c])
+        {
+
+        //assign color
+
+        float color_swap[3]{testIm[idx*3],testIm[idx*3+1],testIm[idx*3+2]};
+
+        testIm[idx*3]= color[0];
+        testIm[idx*3+1]= color[1];
+        testIm[idx*3+2]= color[2];
+
+        score[c*check + idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3;
+
+        testIm[idx*3]= color_swap[0];
+        testIm[idx*3+1]= color_swap[1];
+        testIm[idx*3+2]= color_swap[2];
+        }
+        else { score[c*check + idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3; }
+
         }
         }
 
@@ -129,11 +132,12 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
     # print(x_coordinates)
     # print(y_coordinates)
 
-    BLOCK_SIZE = 1024
-    block = (BLOCK_SIZE,1,1)
+    BLOCK_SIZE = 1024/16
+    block = (32,32,1)
     totalPixels = numpy.int32(targetIm.shape[0]*targetIm.shape[1])
-    gridRounded=int(targetIm.shape[0]*targetIm.shape[1]/BLOCK_SIZE)+1
-    grid = (gridRounded,1,1)
+    gridRounded_x=int(targetIm.shape[0]*targetIm.shape[1]/block[0])+1
+    gridRounded_y=int(radius.shape[0]/block[0])+1
+    grid = (gridRounded_x,gridRounded_y,1)
 
     circle_func(d_px_test, d_px_target, score_gpu, numpy.int32(len(radius)), totalPixels, x_coord, y_coord, radius_cuda, numpy.int32(targetIm.shape[1]) ,block=block,grid = grid)
 
@@ -144,7 +148,7 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
 
     # bwPx = (numpy.uint8(bwPx))
     # pil_im = Image.fromarray(bwPx,mode ="RGB")
-    return np.sum(score, axis=1)/totalPixels
+    return np.sum(score, axis = 1)/totalPixels
 
 kernel_loss = """
 
@@ -205,11 +209,11 @@ if __name__=='__main__':
 
     from draw_particules import Draw_particules
 
-    im = np.zeros((100,100,3))
+    im = np.zeros((1000,1000,3))
 
-    center_pos_x = np.array([50])
-    center_pos_y = np.array([50])
-    radius = np.array([50])
+    center_pos_x = np.array([500])
+    center_pos_y = np.array([500])
+    radius = np.array([500])
 
     score = score_generation(im,im,center_pos_x,center_pos_y,radius)
     print(score)
@@ -217,6 +221,6 @@ if __name__=='__main__':
     scoreloss = loss(im, draw)
     print(scoreloss)
 
-    # cv.imshow('particle', draw)
-    # cv.imshow('test', im)
-    # cv.waitKey(0)
+    cv.imshow('particle', draw)
+    cv.imshow('test', im)
+    cv.waitKey(0)
