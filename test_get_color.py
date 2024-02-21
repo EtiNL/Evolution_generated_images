@@ -1,6 +1,6 @@
 import numpy as np
 import cv2 as cv
-from draw_particules import Draw_particules
+from draw_particles import Draw_particules
 
 image_path = 'raw_data/vangogh2.jpg'
 target_img = cv.imread(image_path, cv.IMREAD_COLOR)

@@ -1,8 +1,11 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from score import score_generation, loss
-from draw_particules import Draw_particules
+from draw_particles import Draw_circles
 import time
 import cv2 as cv
+from skimage.filters.rank import entropy
+from skimage.morphology import disk
 
 class Particles:
     def __init__(self, nbr_particules, n_keep, target_img, particle_img, ds_coef):
@@ -13,18 +16,43 @@ class Particles:
         self.ds_target_img = cv.resize(target_img, (target_img.shape[1]//ds_coef,target_img.shape[0]//ds_coef))
         self.particle_img = particle_img
         self.ds_particle_img = cv.resize(particle_img, (particle_img.shape[1]//ds_coef,particle_img.shape[0]//ds_coef))
-        self.image_shape = target_img.shape
+        self.image_shape = target_img.shape[0:2]
         # self.type = np.random.randint(nbr_types, size=nbr_particules)
         # center_pos = np.random.randint((0,0), high=(image_shape[1],image_shape[0]), size=(nbr_particules, 2))
-        self.center_pos_x, self.center_pos_y = self.depth_map_distribuated_center_pos()
+        self.center_pos_x, self.center_pos_y = self.local_entropy_distribuated_center_pos()
         # self.orientation = np.random.randint(2*np.pi, size=nbr_particules)
         # self.max_radius = max(min(self.image_shape[0:2])//20*radius_decay,10)
         # self.radius = np.random.randint(2, high=self.max_radius, size=nbr_particules)
-        self.max_radius = max(min(self.image_shape[0:2])//(ds_coef*4),4.5)
-        self.radius, self.score = self.ternary_search_radius()
+        self.max_radius = max(min(self.image_shape)//(ds_coef*4),4.5)
+        self.radius, self.score = self.binary_search_radius()
+
+    def local_entropy_distribuated_center_pos(self):
+        # depth_map = np.sum(np.abs(self.ds_target_img - self.ds_particle_img), axis = 2)/3
+        # max_depth, min_depth = np.max(depth_map), np.min(depth_map)
+        # depth_map = (depth_map - min_depth)/(max_depth - min_depth)
+        # distrib_depth = depth_map/np.sum(depth_map)
+
+        entr_map = entropy(cv.cvtColor(np.abs(self.ds_target_img-self.ds_particle_img), cv.COLOR_BGR2GRAY).astype(np.uint8), disk(10))
+        # cv.imshow('entropy_map', self.target_img)
+        max_entr, min_entr = np.max(entr_map), np.min(entr_map)
+        entropy_map = (entr_map - min_entr)/(max_entr - min_entr)*255
+        distrib_depth = entropy_map/np.sum(entropy_map)
+
+        # Create a flat copy of the array
+        flat_distrib = distrib_depth.flatten()
 
 
-    def ternary_search_radius(self):
+        # Then, sample an index from the 1D array with the
+        # probability distribution from the original array
+        sample_index = np.random.choice(flat_distrib.size, size = self.nbr_particules, p=flat_distrib)
+
+        # Take this index and adjust it so it matches the original array
+        center_pos_y, center_pos_x = np.unravel_index(sample_index, distrib_depth.shape)
+
+        return center_pos_x, center_pos_y
+
+
+    def binary_search_radius(self):
         radius = []
         score = []
         for i in range(self.center_pos_x.shape[0]):
@@ -32,9 +60,9 @@ class Particles:
             rad_plus = self.max_radius
             rad_minus = 2
             rad_mid = (rad_plus-rad_minus)/2
-            loss_plus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
-            loss_minus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
-            loss_mid = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
+            loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
+            loss_minus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
+            loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
 
             while np.abs(rad_plus-rad_minus)>epsilon:
 
@@ -42,20 +70,20 @@ class Particles:
                     swap = rad_mid
                     rad_mid += (rad_plus-rad_mid)/2
                     rad_minus = swap
-                    loss_minus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
-                    loss_mid = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
+                    loss_minus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
+                    loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
 
                 elif np.min([loss_plus, loss_mid, loss_minus]) == loss_minus:
                     swap = rad_mid
                     rad_mid -= (rad_mid-rad_minus)/2
                     rad_plus = swap
-                    loss_plus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
-                    loss_mid = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
+                    loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
+                    loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
                 else:
                     rad_minus += (rad_mid-rad_minus)/2
                     rad_plus -= (rad_plus-rad_mid)/2
-                    loss_plus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
-                    loss_mid = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
+                    loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
+                    loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
 
 
             if np.min([loss_plus, loss_mid, loss_minus]) == loss_plus:
@@ -67,23 +95,9 @@ class Particles:
             else:
                 radius.append(rad_minus)
                 score.append(loss_minus)
+        # print([round(scor,2) for scor in score])
         return np.array(radius), np.array(score)
 
-    def depth_map_distribuated_center_pos(self):
-        depth_map = np.sum(np.abs(self.ds_target_img - self.ds_particle_img), axis = 2)/3
-        max_depth, min_depth = np.max(depth_map), np.min(depth_map)
-        depth_map = (depth_map - min_depth)/(max_depth - min_depth)
-        distrib_depth = depth_map/np.sum(depth_map)
-        # Create a flat copy of the array
-        flat_distrib_depth = distrib_depth.flatten()
-
-        # Then, sample an index from the 1D array with the
-        # probability distribution from the original array
-        sample_index = np.random.choice(flat_distrib_depth.size, size = self.nbr_particules, p=flat_distrib_depth)
-
-        # Take this index and adjust it so it matches the original array
-        center_pos_y, center_pos_x = np.unravel_index(sample_index, distrib_depth.shape)
-        return center_pos_x, center_pos_y
 
 
     def get_score(self):
@@ -142,7 +156,7 @@ class Particles:
 
     def draw_particules(self, previous_loss):
 
-        new_img = Draw_particules(self.target_img, np.copy(self.particle_img), self.scale(self.center_pos_x), self.scale(self.center_pos_y), self.scale(self.radius))
+        new_img = Draw_circles(self.target_img, np.copy(self.particle_img), self.scale(self.center_pos_x), self.scale(self.center_pos_y), self.scale(self.radius))
 
         loss_val = loss(self.target_img, new_img)
         if previous_loss < loss_val:
@@ -150,3 +164,25 @@ class Particles:
 
         else:
             return loss_val, new_img
+
+
+if __name__ == '__main__':
+
+    from PIL import Image
+    import matplotlib.pyplot as plt
+
+    targetIm = np.array(Image.open('raw_data/point.jpg'))
+    genIm = np.zeros_like(targetIm)
+    depth = cv.cvtColor(np.abs(targetIm-genIm ), cv.COLOR_BGR2GRAY).astype(np.uint8)
+
+    entr_map = entropy(depth, disk(10))
+    max_entr, min_entr = np.max(entr_map), np.min(entr_map)
+    entropy_map = ((entr_map - min_entr)/(max_entr - min_entr)*255).astype(np.uint8)
+    # entropy_map = (entropy_map/np.sum(entropy_map))
+    print(np.min(entropy_map),np.max(entropy_map))
+    print(entropy_map.shape)
+    cv.imshow('entropy_map',entropy_map)
+    # plt.imshow(entropy_map)
+    plt.show()
+    cv.waitKey(0)
+    # Particles(30, 1, targetIm, genIm, 1)

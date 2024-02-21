@@ -3,92 +3,86 @@ from pycuda.compiler import SourceModule
 from pycuda import compiler
 import pycuda.driver as cuda
 import pycuda.autoinit             # PyCuda autoinit
+import pycuda.gpuarray as gpuarray
 import numpy
 import numpy as np
+from skimage.filters.rank import entropy
+from skimage.morphology import disk
+import cv2 as cv
 
 kernel_score = """
 
-    __global__ void score( float *testIm, float *targetIm, float *score, int nbr_circles, int check, float *x_coordinates, float *y_coordinates, float *radius, int im_size){
+__global__ void score(float *testIm, float *targetIm, float *score, int nbr_circles, int check, float *x_coordinates, float *y_coordinates, float *radius, int im_size) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    int pixel_y = idx / im_size;
+    int pixel_x = idx % im_size;
+    int circle_idx = blockIdx.y;
 
-        int idx = (threadIdx.x ) + blockDim.x * blockIdx.x ;
-        int pixel_y = idx / im_size ;
-        int pixel_x = idx % im_size ;
-
-        for(int c = 0; c < nbr_circles; c++){
-
-            float color[3]{0,0,0};
-            // getting color
-            int count = 0;
-            int id = (y_coordinates[c])*im_size + x_coordinates[c];
-            color[0] = color[0] + targetIm[3*id];
-            color[1] = color[1] + targetIm[3*id+1];
-            color[2] = color[2] + targetIm[3*id+2];
-            count++;
-            int r = 10;
-            if (radius[c] < r){r = radius[c];}
-            for(int i = 0; i<r; i++){
-                for(int j = 0; j<r; j++){
-
-                    int id = (y_coordinates[c]+j)*im_size + x_coordinates[c]+i;
-                    if (i*i+j*j<r*r && id < check && id > 0){
-
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                    id = (y_coordinates[c]-j)*im_size + x_coordinates[c]+i;
-                    if (i*i+j*j<r*r && id < check && id > 0){
-
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                    id = (y_coordinates[c]-j)*im_size + x_coordinates[c]-i;
-
-                    if (i*i+j*j<r*r  && id < check && id > 0){
-
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
-                    id = (y_coordinates[c]+j)*im_size + x_coordinates[c]-i;
-                    if (i*i+j*j<r*r && id < check && id > 0){
-
-                      color[0] = color[0] + targetIm[3*id];
-                      color[1] = color[1] + targetIm[3*id+1];
-                      color[2] = color[2] + targetIm[3*id+2];
-                      count++;
-                      }
+    if (circle_idx < nbr_circles) {
+        float color[3] = {0, 0, 0};
+        // Getting color
+        int count = 0;
+        int id = (y_coordinates[circle_idx]) * im_size + x_coordinates[circle_idx];
+        color[0] = color[0] + targetIm[3 * id];
+        color[1] = color[1] + targetIm[3 * id + 1];
+        color[2] = color[2] + targetIm[3 * id + 2];
+        count++;
+        int r = 5;
+        if (radius[circle_idx] < r){
+                if (radius[circle_idx] > 1){r = radius[circle_idx];}
+                else{r = 1;}
                 }
-        	}
-            color[0] = color[0] / count;
-            color[1] = color[1] / count;
-            color[2] = color[2] / count;
-
-            float dist_from_center = (pixel_x-x_coordinates[c])*(pixel_x-x_coordinates[c]) + (pixel_y-y_coordinates[c])*(pixel_y-y_coordinates[c]) ;
-            if(idx *3 < check*3 && dist_from_center < radius[c]*radius[c])
-            {
-
-            //assign color
-
-            float color_swap[3]{testIm[idx*3],testIm[idx*3+1],testIm[idx*3+2]};
-
-            testIm[idx*3]= color[0];
-            testIm[idx*3+1]= color[1];
-            testIm[idx*3+2]= color[2];
-
-            score[c*check + idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3;
-
-            testIm[idx*3]= color_swap[0];
-            testIm[idx*3+1]= color_swap[1];
-            testIm[idx*3+2]= color_swap[2];
+        for (int i = 0; i < r; i++) {
+            for (int j = 0; j < r; j++) {
+                int id = (y_coordinates[circle_idx] + j) * im_size + x_coordinates[circle_idx] + i;
+                if (i * i + j * j < r * r && id < check && id > 0) {
+                    color[0] = color[0] + targetIm[3 * id];
+                    color[1] = color[1] + targetIm[3 * id + 1];
+                    color[2] = color[2] + targetIm[3 * id + 2];
+                    count++;
+                }
+                id = (y_coordinates[circle_idx] - j) * im_size + x_coordinates[circle_idx] + i;
+                if (i * i + j * j < r * r && id < check && id > 0) {
+                    color[0] = color[0] + targetIm[3 * id];
+                    color[1] = color[1] + targetIm[3 * id + 1];
+                    color[2] = color[2] + targetIm[3 * id + 2];
+                    count++;
+                }
+                id = (y_coordinates[circle_idx] - j) * im_size + x_coordinates[circle_idx] - i;
+                if (i * i + j * j < r * r && id < check && id > 0) {
+                    color[0] = color[0] + targetIm[3 * id];
+                    color[1] = color[1] + targetIm[3 * id + 1];
+                    color[2] = color[2] + targetIm[3 * id + 2];
+                    count++;
+                }
+                id = (y_coordinates[circle_idx] + j) * im_size + x_coordinates[circle_idx] - i;
+                if (i * i + j * j < r * r && id < check && id > 0) {
+                    color[0] = color[0] + targetIm[3 * id];
+                    color[1] = color[1] + targetIm[3 * id + 1];
+                    color[2] = color[2] + targetIm[3 * id + 2];
+                    count++;
+                }
             }
-            else { score[c*check + idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3; }
         }
+        color[0] = color[0] / count;
+        color[1] = color[1] / count;
+        color[2] = color[2] / count;
+        float dist_from_center = (pixel_x - x_coordinates[circle_idx]) * (pixel_x - x_coordinates[circle_idx]) + (pixel_y - y_coordinates[circle_idx]) * (pixel_y - y_coordinates[circle_idx]);
+        if (idx * 3 < check * 3 && dist_from_center < radius[circle_idx] * radius[circle_idx]) {
+            // Assign color
+            float color_swap[3] = {testIm[idx * 3], testIm[idx * 3 + 1], testIm[idx * 3 + 2]};
+            testIm[idx * 3] = color[0];
+            testIm[idx * 3 + 1] = color[1];
+            testIm[idx * 3 + 2] = color[2];
+            score[circle_idx * check + idx] = (abs(testIm[idx * 3] - targetIm[idx * 3]) + abs(testIm[idx * 3 + 1] - targetIm[idx * 3 + 1]) + abs(testIm[idx * 3 + 2] - targetIm[idx * 3 + 2])) / 3;
+            testIm[idx * 3] = color_swap[0];
+            testIm[idx * 3 + 1] = color_swap[1];
+            testIm[idx * 3 + 2] = color_swap[2];
+        } else {
+            score[circle_idx * check + idx] = (abs(testIm[idx * 3] - targetIm[idx * 3]) + abs(testIm[idx * 3 + 1] - targetIm[idx * 3 + 1]) + abs(testIm[idx * 3 + 2] - targetIm[idx * 3 + 2])) / 3;
         }
+    }
+}
 
     """
 
@@ -96,55 +90,45 @@ kernel_score = """
 
 
 def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
+    try:
+        # Compile and get kernel function
+        mod = SourceModule(kernel_score)
+        circle_func = mod.get_function("score")
 
-    #Compile and get kernel function
-    mod = SourceModule(kernel_score)
-    circle_func = mod.get_function("score")
+        d_px_target = gpuarray.to_gpu(targetIm.astype(np.float32))
+        d_px_test = gpuarray.to_gpu(testIm.astype(np.float32))
+        x_coordinates = gpuarray.to_gpu(center_pos_x.astype(np.int32))
+        y_coordinates = gpuarray.to_gpu(center_pos_y.astype(np.int32))
+        radius_cuda = gpuarray.to_gpu(radius.astype(np.int32))
 
+        # Create a buffer to hold the result of the kernel computation
+        score_result_gpu = gpuarray.zeros((radius.shape[0], targetIm.shape[0] * targetIm.shape[1]), dtype=np.float32)
 
-    px_target = numpy.array(targetIm).astype(numpy.float32)
-    d_px_target = cuda.mem_alloc(px_target.nbytes)
-    cuda.memcpy_htod(d_px_target, px_target)
+        # Define score_gpu buffer
+        score_gpu = gpuarray.zeros((radius.shape[0], targetIm.shape[0] * targetIm.shape[1]), dtype=np.float32)
 
-    px_test = numpy.array(testIm).astype(numpy.float32)
-    d_px_test = cuda.mem_alloc(px_test.nbytes)
-    cuda.memcpy_htod(d_px_test, px_test)
+        BLOCK_SIZE = 1024
+        total_pixels = targetIm.shape[0] * targetIm.shape[1]
+        num_blocks_x = (total_pixels + BLOCK_SIZE - 1) // BLOCK_SIZE
+        num_blocks_y = radius.shape[0]
+        grid_size = (num_blocks_x, num_blocks_y, 1)
+        block_size = (BLOCK_SIZE, 1, 1)
 
-    x_coordinates = numpy.array(center_pos_x).astype(numpy.float32)
-    x_coord = cuda.mem_alloc(x_coordinates.nbytes)
-    cuda.memcpy_htod(x_coord,x_coordinates)
+        # Call the kernel function with the result buffer
+        circle_func(d_px_test, d_px_target, score_result_gpu, numpy.int32(len(radius)), numpy.int32(total_pixels), x_coordinates, y_coordinates, radius_cuda, numpy.int32(targetIm.shape[1]), block=block_size, grid=grid_size)
 
-    y_coordinates = numpy.array(center_pos_y).astype(numpy.float32)
-    y_coord = cuda.mem_alloc(y_coordinates.nbytes)
-    cuda.memcpy_htod(y_coord,y_coordinates)
+        # Copy the result back to the original score_gpu buffer if needed
+        score_gpu.set(score_result_gpu)
 
-    radius = numpy.array(radius).astype(numpy.float32)
-    radius_cuda = cuda.mem_alloc(radius.nbytes)
-    cuda.memcpy_htod(radius_cuda,radius)
+        # Process the result further if necessary
+        score = (score_gpu.get()).reshape((radius.shape[0], targetIm.shape[0], targetIm.shape[1]))
+        score = np.array([np.sum(entropy(score[i,:,:].astype(numpy.uint8), disk(10))) / total_pixels for i in range(radius.shape[0])])
 
-    score = numpy.zeros((radius.shape[0],targetIm.shape[0]*targetIm.shape[1])).astype(numpy.float32)
-    score_gpu = cuda.mem_alloc(score.nbytes)
-    cuda.memcpy_htod(score_gpu, score)
+        return score * 10
 
-    # print(x_coordinates)
-    # print(y_coordinates)
-
-    BLOCK_SIZE = 1024
-    block = (BLOCK_SIZE,1,1)
-    totalPixels = numpy.int32(targetIm.shape[0]*targetIm.shape[1])
-    gridRounded=int(targetIm.shape[0]*targetIm.shape[1]/BLOCK_SIZE)+1
-    grid = (gridRounded,1,1)
-
-    circle_func(d_px_test, d_px_target, score_gpu, numpy.int32(len(radius)), totalPixels, x_coord, y_coord, radius_cuda, numpy.int32(targetIm.shape[1]) ,block=block,grid = grid)
-
-    # bwPx = numpy.empty_like(px_target)
-    # cuda.memcpy_dtoh(bwPx, d_px_test)
-
-    cuda.memcpy_dtoh(score, score_gpu)
-
-    # bwPx = (numpy.uint8(bwPx))
-    # pil_im = Image.fromarray(bwPx,mode ="RGB")
-    return np.sum(score, axis=1)/totalPixels
+    except cuda.Error as e:
+        print("CUDA error:", e)
+        return 0
 
 kernel_loss = """
 
@@ -164,17 +148,13 @@ def loss(targetIm, testIm):
     loss_func = mod.get_function("loss")
 
 
-    px_target = numpy.array(targetIm).astype(numpy.float32)
-    d_px_target = cuda.mem_alloc(px_target.nbytes)
-    cuda.memcpy_htod(d_px_target, px_target)
+    d_px_target = gpuarray.to_gpu(targetIm.astype(np.float32))
+    d_px_test = gpuarray.to_gpu(testIm.astype(np.float32))
+    # Create a buffer to hold the result of the kernel computation
+    score_result_gpu = gpuarray.zeros(targetIm.shape[:2], dtype=np.float32)
 
-    px_test = numpy.array(testIm).astype(numpy.float32)
-    d_px_test = cuda.mem_alloc(px_test.nbytes)
-    cuda.memcpy_htod(d_px_test, px_test)
-
-    score = numpy.zeros(px_target.shape[:2]).astype(numpy.float32)
-    score_gpu = cuda.mem_alloc(px_test.nbytes)
-    cuda.memcpy_htod(score_gpu, score)
+    # Define score_gpu buffer
+    score_gpu = gpuarray.zeros(targetIm.shape[:2], dtype=np.float32)
 
     BLOCK_SIZE = 1024
     block = (BLOCK_SIZE,1,1)
@@ -182,12 +162,20 @@ def loss(targetIm, testIm):
     gridRounded=int(targetIm.shape[0]*targetIm.shape[1]/BLOCK_SIZE)+1
     grid = (gridRounded,1,1)
 
-    loss_func(d_px_test, d_px_target, score_gpu, totalPixels, numpy.int32(targetIm.shape[1]) ,block=block,grid = grid)
 
 
-    cuda.memcpy_dtoh(score, score_gpu)
 
-    return np.sum(score)/totalPixels
+    loss_func(d_px_test, d_px_target, score_result_gpu, totalPixels, numpy.int32(targetIm.shape[1]) ,block=block,grid = grid)
+
+    # Copy the result back to the original score_gpu buffer if needed
+    score_gpu.set(score_result_gpu)
+
+    # Process the result further if necessary
+    score = (score_gpu.get()).reshape(targetIm.shape[:2])
+
+
+
+    return np.sum(entropy(score.astype(np.uint8), disk(10)))/totalPixels*10
 
 if __name__=='__main__':
     from PIL import Image
@@ -203,20 +191,21 @@ if __name__=='__main__':
     # cv2.waitKey(0)
 
 
-    from draw_particules import Draw_particules
+    from draw_particles import Draw_particules
 
-    im = np.zeros((100,100,3))
+    targetIm = np.array(Image.open('raw_data/point.jpg'))
+    genIm = np.zeros_like(targetIm)
 
-    center_pos_x = np.array([50])
-    center_pos_y = np.array([50])
-    radius = np.array([50])
+    center_pos_x = np.array([50,150])
+    center_pos_y = np.array([50,150])
+    radius = np.array([50,100])
 
-    score = score_generation(im,im,center_pos_x,center_pos_y,radius)
+    score = score_generation(targetIm,genIm,center_pos_x,center_pos_y,radius)
     print(score)
-    draw = Draw_particules(im, np.copy(im), center_pos_x, center_pos_y, radius)
-    scoreloss = loss(im, draw)
+    draw = Draw_particules(targetIm, np.copy(genIm), center_pos_x, center_pos_y, radius)
+    scoreloss = loss(targetIm, draw)
     print(scoreloss)
 
     # cv.imshow('particle', draw)
     # cv.imshow('test', im)
-    # cv.waitKey(0)
+    cv.waitKey(0)
