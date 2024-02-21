@@ -89,7 +89,7 @@ __global__ void score(float *testIm, float *targetIm, float *score, int nbr_circ
 
 
 
-def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
+def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, scoring):
     try:
         # Compile and get kernel function
         mod = SourceModule(kernel_score)
@@ -120,11 +120,17 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
         # Copy the result back to the original score_gpu buffer if needed
         score_gpu.set(score_result_gpu)
 
-        # Process the result further if necessary
-        score = (score_gpu.get()).reshape((radius.shape[0], targetIm.shape[0], targetIm.shape[1]))
-        score = np.array([np.sum(entropy(score[i,:,:].astype(numpy.uint8), disk(10))) / total_pixels for i in range(radius.shape[0])])
 
-        return score * 10
+        if scoring == 'entropy':
+            score = (score_gpu.get()).reshape((radius.shape[0], targetIm.shape[0], targetIm.shape[1]))
+            score = np.array([np.sum(entropy(score[i,:,:].astype(numpy.uint8), disk(10))) / total_pixels for i in range(radius.shape[0])])
+
+            return score * 10
+
+        elif scoring == 'entropy':
+            score = (score_gpu.get()).reshape((radius.shape[0], targetIm.shape[0]* targetIm.shape[1]))
+            return np.sum(score, axis=1)/total_pixels
+
 
     except cuda.Error as e:
         print("CUDA error:", e)
@@ -141,7 +147,7 @@ kernel_loss = """
         }
 
     """
-def loss(targetIm, testIm):
+def loss(targetIm, testIm, scoring):
 
     #Compile and get kernel function
     mod = SourceModule(kernel_loss)
@@ -174,8 +180,10 @@ def loss(targetIm, testIm):
     score = (score_gpu.get()).reshape(targetIm.shape[:2])
 
 
-
-    return np.sum(entropy(score.astype(np.uint8), disk(10)))/totalPixels*10
+    if scoring == 'intensity':
+        return np.sum(entropy(score.astype(np.uint8), disk(10)))/totalPixels*10
+    elif scoring == 'entropy':
+        return np.sum(score)/totalPixels
 
 if __name__=='__main__':
     from PIL import Image

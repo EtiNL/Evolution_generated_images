@@ -8,7 +8,7 @@ from skimage.filters.rank import entropy
 from skimage.morphology import disk
 
 class Particles:
-    def __init__(self, nbr_particules, n_keep, target_img, particle_img, ds_coef):
+    def __init__(self, nbr_particules, n_keep, target_img, particle_img, ds_coef, scoring='entropy'):
         self.ds_coef = ds_coef
         self.nbr_particules = nbr_particules
         self.n_keep = n_keep
@@ -17,9 +17,13 @@ class Particles:
         self.particle_img = particle_img
         self.ds_particle_img = cv.resize(particle_img, (particle_img.shape[1]//ds_coef,particle_img.shape[0]//ds_coef))
         self.image_shape = target_img.shape[0:2]
+        self.scoring = scoring
         # self.type = np.random.randint(nbr_types, size=nbr_particules)
         # center_pos = np.random.randint((0,0), high=(image_shape[1],image_shape[0]), size=(nbr_particules, 2))
-        self.center_pos_x, self.center_pos_y = self.local_entropy_distribuated_center_pos()
+        if scoring == 'entropy':
+            self.center_pos_x, self.center_pos_y = self.local_entropy_distribuated_center_pos()
+        elif scoring == 'intensity':
+            self.center_pos_x, self.center_pos_y = self.depth_map_distribuated_center_pos()
         # self.orientation = np.random.randint(2*np.pi, size=nbr_particules)
         # self.max_radius = max(min(self.image_shape[0:2])//20*radius_decay,10)
         # self.radius = np.random.randint(2, high=self.max_radius, size=nbr_particules)
@@ -51,6 +55,22 @@ class Particles:
 
         return center_pos_x, center_pos_y
 
+    def depth_map_distribuated_center_pos(self):
+        depth_map = np.sum(np.abs(self.ds_target_img - self.ds_particle_img), axis = 2)/3
+        max_depth, min_depth = np.max(depth_map), np.min(depth_map)
+        depth_map = (depth_map - min_depth)/(max_depth - min_depth)
+        distrib_depth = depth_map/np.sum(depth_map)
+        # Create a flat copy of the array
+        flat_distrib_depth = distrib_depth.flatten()
+
+        # Then, sample an index from the 1D array with the
+        # probability distribution from the original array
+        sample_index = np.random.choice(flat_distrib_depth.size, size = self.nbr_particules, p=flat_distrib_depth)
+
+        # Take this index and adjust it so it matches the original array
+        center_pos_y, center_pos_x = np.unravel_index(sample_index, distrib_depth.shape)
+        return center_pos_x, center_pos_y
+
 
     def binary_search_radius(self):
         radius = []
@@ -60,6 +80,7 @@ class Particles:
             rad_plus = self.max_radius
             rad_minus = 2
             rad_mid = (rad_plus-rad_minus)/2
+            # score_generation(self.ds_particle_img, self.ds_target_img, np.array([self.center_pos_x[i],self.center_pos_x[i],self.center_pos_x[i]]), np.array([self.center_pos_y[i], self.center_pos_y[i],self.center_pos_y[i]]), np.array([rad_plus, rad_minus, rad_mid]), self.scoring)
             loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
             loss_minus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
             loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
@@ -101,7 +122,7 @@ class Particles:
 
 
     def get_score(self):
-        return score_generation(self.ds_particle_img, self.ds_target_img, self.center_pos_x, self.center_pos_y, self.radius)
+        return score_generation(self.ds_particle_img, self.ds_target_img, self.center_pos_x, self.center_pos_y, self.radius, self.scoring)
     def keep_n_best(self, n = 0):
         if n==0: n = self.n_keep
         # print(score)
@@ -158,7 +179,7 @@ class Particles:
 
         new_img = Draw_circles(self.target_img, np.copy(self.particle_img), self.scale(self.center_pos_x), self.scale(self.center_pos_y), self.scale(self.radius))
 
-        loss_val = loss(self.target_img, new_img)
+        loss_val = loss(self.target_img, new_img, self.scoring)
         if previous_loss < loss_val:
             return previous_loss, self.particle_img
 
