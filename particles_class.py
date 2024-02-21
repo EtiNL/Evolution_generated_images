@@ -72,52 +72,62 @@ class Particles:
         return center_pos_x, center_pos_y
 
 
+
     def binary_search_radius(self):
-        radius = []
-        score = []
+
+        epsilon = 2
+        rad_plus = self.max_radius
+        rad_minus = 1
+        rad_mid = (rad_plus-rad_minus)/2
+        pos_X, pos_Y = [], []
         for i in range(self.center_pos_x.shape[0]):
-            epsilon = 2
-            rad_plus = self.max_radius
-            rad_minus = 2
-            rad_mid = (rad_plus-rad_minus)/2
-            # score_generation(self.ds_particle_img, self.ds_target_img, np.array([self.center_pos_x[i],self.center_pos_x[i],self.center_pos_x[i]]), np.array([self.center_pos_y[i], self.center_pos_y[i],self.center_pos_y[i]]), np.array([rad_plus, rad_minus, rad_mid]), self.scoring)
-            loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
-            loss_minus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
-            loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
+            pos_X.append(self.center_pos_x[i])
+            pos_X.append(self.center_pos_x[i])
+            pos_X.append(self.center_pos_x[i])
+            pos_Y.append(self.center_pos_y[i])
+            pos_Y.append(self.center_pos_y[i])
+            pos_Y.append(self.center_pos_y[i])
 
-            while np.abs(rad_plus-rad_minus)>epsilon:
+        radius_search = [rad_plus, rad_mid, rad_minus]*self.center_pos_x.shape[0]
 
-                if np.min([loss_plus, loss_mid, loss_minus]) == loss_plus:
-                    swap = rad_mid
-                    rad_mid += (rad_plus-rad_mid)/2
-                    rad_minus = swap
-                    loss_minus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
-                    loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
+        score = score_generation(self.ds_particle_img, self.ds_target_img, np.array(pos_X), np.array(pos_Y), np.array(radius_search), self.scoring)
+        max_diff_rad_plus_minus = rad_plus-rad_minus
 
-                elif np.min([loss_plus, loss_mid, loss_minus]) == loss_minus:
-                    swap = rad_mid
-                    rad_mid -= (rad_mid-rad_minus)/2
-                    rad_plus = swap
-                    loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
-                    loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_mid])))
-                else:
-                    rad_minus += (rad_mid-rad_minus)/2
-                    rad_plus -= (rad_plus-rad_mid)/2
-                    loss_plus = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
-                    loss_mid = loss(self.ds_target_img, Draw_circles(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
+        while max_diff_rad_plus_minus >epsilon:
+            for i in range(self.center_pos_x.shape[0]):
+                if radius_search[3*i]-radius_search[3*i+2] > epsilon:
 
+                    if np.min([score[3*i], score[3*i+1], score[3*i+2]]) == score[3*i]:
+                        swap = radius_search[3*i+1] #rad_mid
+                        radius_search[3*i+1] += (radius_search[3*i]-radius_search[3*i+1])/2
+                        radius_search[3*i+2] = swap
 
-            if np.min([loss_plus, loss_mid, loss_minus]) == loss_plus:
-                radius.append(rad_plus)
-                score.append(loss_plus)
-            elif np.min([loss_plus, loss_mid, loss_minus]) == loss_mid:
-                radius.append(rad_mid)
-                score.append(loss_mid)
+                    elif np.min([score[3*i], score[3*i+1], score[3*i+2]]) == score[3*i+2]:
+                        swap = radius_search[3*i+1]
+                        radius_search[3*i+1] -= (radius_search[3*i+1]-radius_search[3*i+2])/2
+                        radius_search[3*i] = swap
+                    else:
+                        radius_search[3*i+2] += (radius_search[3*i+1]-radius_search[3*i+2])/2
+                        radius_search[3*i] -= (radius_search[3*i]-radius_search[3*i+1])/2
+                else: pass
+
+            score = score_generation(self.ds_particle_img, self.ds_target_img, np.array(pos_X), np.array(pos_Y), np.array(radius_search), self.scoring)
+            max_diff_rad_plus_minus = max([radius_search[3*i]-radius_search[3*i+2] for i in range(self.center_pos_x.shape[0])])
+
+        final_score, final_radius = [], []
+        for i in range(self.center_pos_x.shape[0]):
+            if np.min([score[3*i], score[3*i+1], score[3*i+2]]) == score[3*i]:
+                final_score.append(score[3*i])
+                final_radius.append(radius_search[3*i])
+
+            elif np.min([score[3*i], score[3*i+1], score[3*i+2]]) == score[3*i+2]:
+                final_score.append(score[3*i+2])
+                final_radius.append(radius_search[3*i+2])
             else:
-                radius.append(rad_minus)
-                score.append(loss_minus)
-        # print([round(scor,2) for scor in score])
-        return np.array(radius), np.array(score)
+                final_score.append(score[3*i+1])
+                final_radius.append(radius_search[3*i+1])
+
+        return np.array(final_radius), np.array(final_score)
 
 
 

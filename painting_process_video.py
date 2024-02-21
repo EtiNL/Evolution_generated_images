@@ -118,9 +118,9 @@ class Video_particle_manager:
 
         video.release()
 
-def generate_particles(targetImg,number_gen,filename):
+def generate_particles(targetImg,number_gen,filename, scoring = 'entropy'):
     genImg = np.zeros_like(targetImg)
-    loss_val = loss(targetImg, genImg)
+    loss_val = loss(targetImg, genImg, scoring)
     ds_coef = 16
 
     particles = []
@@ -129,7 +129,7 @@ def generate_particles(targetImg,number_gen,filename):
         radius_mean = []
         particle_found = False
         while not particle_found:
-            gen = Particles(10, 1, targetImg, genImg, ds_coef)
+            gen = Particles(10, 1, targetImg, genImg, ds_coef, scoring)
             # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
             # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
             gen.keep_n_best(n=3)
