@@ -1,4 +1,4 @@
-# generation process of starry night:
+# generation process of Starry Night:
  https://youtu.be/b_EqgPfkqOU
 
 # generation of Antibes Paul Signac:
