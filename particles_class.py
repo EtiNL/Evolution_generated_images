@@ -6,14 +6,15 @@ import cv2 as cv
 
 class Particles:
     def __init__(self, nbr_particules, n_keep, target_img, particle_img, ds_coef):
+        self.image_shape = target_img.shape
         self.ds_coef = ds_coef
         self.nbr_particules = nbr_particules
         self.n_keep = n_keep
         self.target_img = target_img
-        self.ds_target_img = cv.resize(target_img, (target_img.shape[1]//ds_coef,target_img.shape[0]//ds_coef))
+        self.ds_target_img = cv.resize(target_img, (self.image_shape[1]//ds_coef,self.image_shape[0]//ds_coef))
         self.particle_img = particle_img
-        self.ds_particle_img = cv.resize(particle_img, (particle_img.shape[1]//ds_coef,particle_img.shape[0]//ds_coef))
-        self.image_shape = target_img.shape
+        self.ds_particle_img = cv.resize(particle_img, (self.image_shape[1]//ds_coef,self.image_shape[0]//ds_coef))
+
         # self.type = np.random.randint(nbr_types, size=nbr_particules)
         # center_pos = np.random.randint((0,0), high=(image_shape[1],image_shape[0]), size=(nbr_particules, 2))
         self.center_pos_x, self.center_pos_y = self.depth_map_distribuated_center_pos()
@@ -100,10 +101,10 @@ class Particles:
         self.radius = self.radius[kept_particle_index.astype(int)]
 
         #reordering by radius size
-        ind_radius = np.argsort(-self.radius)
-        self.center_pos_x = self.center_pos_x[ind_radius.astype(int)]
-        self.center_pos_y = self.center_pos_y[ind_radius.astype(int)]
-        self.radius = self.radius[ind_radius.astype(int)]
+        # ind_radius = np.argsort(-self.radius)
+        # self.center_pos_x = self.center_pos_x[ind_radius.astype(int)]
+        # self.center_pos_y = self.center_pos_y[ind_radius.astype(int)]
+        # self.radius = self.radius[ind_radius.astype(int)]
         # print(self.center_pos_x)
         # print(self.center_pos_y)
 
@@ -130,7 +131,7 @@ class Particles:
                 pos_y_noise.append(y+y_noise)
 
                 r_noise = float((np.random.rand(1)-0.5)*2)*level*self.max_radius
-                if r_noise+r<0: r_noise = 0
+                if r_noise+r<2: r_noise = 0
                 radius_noise.append(r+r_noise)
         self.center_pos_x = np.array(pos_x_noise)
         self.center_pos_y = np.array(pos_y_noise)
@@ -140,13 +141,14 @@ class Particles:
     def scale(self,arr):
         return self.ds_coef * arr
 
-    def draw_particules(self, previous_loss):
+    def draw_particules(self, previous_loss, rad):
 
         new_img = Draw_particules(self.target_img, np.copy(self.particle_img), self.scale(self.center_pos_x), self.scale(self.center_pos_y), self.scale(self.radius))
 
         loss_val = loss(self.target_img, new_img)
         if previous_loss < loss_val:
-            return previous_loss, self.particle_img
+            return rad, previous_loss, self.particle_img
 
         else:
-            return loss_val, new_img
+            rad.append(self.radius[0])
+            return rad, loss_val, new_img
