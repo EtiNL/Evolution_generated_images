@@ -203,7 +203,7 @@ if __name__=='__main__':
     # cv2.waitKey(0)
 
 
-    from draw_particules import Draw_particules
+    from draw_particles import Draw_particules
 
     im = np.zeros((100,100,3))
 

@@ -1,6 +1,6 @@
 import numpy as np
 from score import score_generation, loss
-from draw_particules import Draw_particules
+from draw_particles import Draw_particules
 import time
 import cv2 as cv
 
@@ -25,7 +25,7 @@ class Particles:
         self.radius, self.score = self.ternary_search_radius()
 
 
-    def ternary_search_radius(self):
+    def binary_search_radius(self):
         radius = []
         score = []
         for i in range(self.center_pos_x.shape[0]):
