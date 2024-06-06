@@ -19,7 +19,7 @@ def main(target_img_path, number_gen, intermediary_show = False):
         gen = Particles(50, 1, targetIm, genIm, ds_coef)
         cv2.imshow(f"Target", cv2.cvtColor(targetIm, cv2.COLOR_RGB2BGR))
         # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-        gen.keep_n_best(n=3)
+        gen.keep_n_best(n=10)
         # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
         gen.generate_noise(0.1)
         # if intermediary_show: cv2.imshow(f"gen{i}_noise", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
@@ -44,4 +44,4 @@ def main(target_img_path, number_gen, intermediary_show = False):
     cv2.waitKey(0)
 
 if __name__=='__main__':
-    main('raw_data/vangogh2.jpg', 2000, intermediary_show = False)
+    main('/content/drive/MyDrive/La_force_des_vagues.JPG', 10000, intermediary_show = False)
