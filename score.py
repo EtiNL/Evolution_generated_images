@@ -147,47 +147,53 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
     return np.sum(score, axis=1)/totalPixels
 
 kernel_loss = """
-
-    __global__ void loss( float *testIm, float *targetIm, float *score, int check, int im_size){
-
-
-        int idx = (threadIdx.x ) + blockDim.x * blockIdx.x ;
-        score[idx] = (abs(testIm[idx*3]-targetIm[idx*3])+abs(testIm[idx*3+1]-targetIm[idx*3+1])+abs(testIm[idx*3+2]-targetIm[idx*3+2]))/3;
-
-        }
-
-    """
+__global__ void loss(float *testIm, float *targetIm, float *score, int check, int im_size) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    if (idx < check) { // Ensure idx is within bounds
+        score[idx] = (abs(testIm[idx * 3] - targetIm[idx * 3]) +
+                      abs(testIm[idx * 3 + 1] - targetIm[idx * 3 + 1]) +
+                      abs(testIm[idx * 3 + 2] - targetIm[idx * 3 + 2])) / 3.0;
+    }
+}
+"""
 def loss(targetIm, testIm):
-
-    #Compile and get kernel function
+    # Compile and get kernel function
     mod = SourceModule(kernel_loss)
     loss_func = mod.get_function("loss")
 
+    px_target = np.array(targetIm).astype(np.float32)
+    px_test = np.array(testIm).astype(np.float32)
+    totalPixels = px_target.shape[0] * px_target.shape[1]
 
-    px_target = numpy.array(targetIm).astype(numpy.float32)
+    # Ensure the sizes are correct
+    assert px_target.size == px_test.size, "Target and Test images must have the same size"
+
     d_px_target = cuda.mem_alloc(px_target.nbytes)
-    cuda.memcpy_htod(d_px_target, px_target)
-
-    px_test = numpy.array(testIm).astype(numpy.float32)
     d_px_test = cuda.mem_alloc(px_test.nbytes)
-    cuda.memcpy_htod(d_px_test, px_test)
+    score = np.zeros(px_target.shape[0] * px_target.shape[1]).astype(np.float32)
+    score_gpu = cuda.mem_alloc(score.nbytes)
 
-    score = numpy.zeros(px_target.shape[:2]).astype(numpy.float32)
-    score_gpu = cuda.mem_alloc(px_test.nbytes)
+    cuda.memcpy_htod(d_px_target, px_target)
+    cuda.memcpy_htod(d_px_test, px_test)
     cuda.memcpy_htod(score_gpu, score)
 
     BLOCK_SIZE = 1024
-    block = (BLOCK_SIZE,1,1)
-    totalPixels = numpy.int32(targetIm.shape[0]*targetIm.shape[1])
-    gridRounded=int(targetIm.shape[0]*targetIm.shape[1]/BLOCK_SIZE)+1
-    grid = (gridRounded,1,1)
+    gridRounded = (totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE
+    grid = (gridRounded, 1, 1)
+    block = (BLOCK_SIZE, 1, 1)
 
-    loss_func(d_px_test, d_px_target, score_gpu, totalPixels, numpy.int32(targetIm.shape[1]) ,block=block,grid = grid)
+    # Print types and shapes for debugging
+    # print(f"d_px_test type: {type(d_px_test)}, size: {px_test.nbytes}")
+    # print(f"d_px_target type: {type(d_px_target)}, size: {px_target.nbytes}")
+    # print(f"score_gpu type: {type(score_gpu)}, size: {score.nbytes}")
+    # print(f"totalPixels: {totalPixels}, targetIm.shape[1]: {targetIm.shape[1]}")
+    # print(f"grid: {grid}, block: {block}")
 
+    loss_func(d_px_test, d_px_target, score_gpu, np.int32(totalPixels), np.int32(targetIm.shape[1]), block=block, grid=grid)
 
     cuda.memcpy_dtoh(score, score_gpu)
 
-    return np.sum(score)/totalPixels
+    return np.sum(score) / totalPixels
 
 if __name__=='__main__':
     from PIL import Image
