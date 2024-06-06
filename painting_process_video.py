@@ -265,10 +265,10 @@ def generate_particles(targetImg_path, number_gen, scoring = 'entropy'):
         particle_found = False
         
         while particle_found == False:
-            gen = Particles(20, 1, targetImg, genImg, ds_coef)
+            gen = Particles(100, 1, targetImg, genImg, ds_coef)
             # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
             # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-            gen.keep_n_best(n=5)
+            gen.keep_n_best(n=10)
             # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
             gen.generate_noise(0.1)
             # if intermediary_show: cv2.imshow(f"gen{i}_noise", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
