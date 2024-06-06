@@ -22,7 +22,7 @@ class Particles:
         # self.max_radius = max(min(self.image_shape[0:2])//20*radius_decay,10)
         # self.radius = np.random.randint(2, high=self.max_radius, size=nbr_particules)
         self.max_radius = max(min(self.image_shape[0:2])//(ds_coef*4),4.5)
-        self.radius, self.score = self.ternary_search_radius()
+        self.radius, self.score = self.binary_search_radius()
 
 
     def binary_search_radius(self):
