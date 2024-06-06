@@ -23,126 +23,146 @@ from draw_particles import Draw_particules
 
 class Video_particle_manager:
 
-    def __init__(self,filename,fps,targetImg_path,video_duration,particles):
-        """Handle the particles that have been selected and draw them doubling the number of drawn particles each second
-        and draw them at a random time within the second_frame"""
-        targetImg = np.array(Image.open(targetImg_path))
+    def __init__(self, filename, fps, targetImg_path, video_duration, particles):
+        """
+        Initialize the Video_particle_manager with the given parameters.
+        
+        Parameters:
+        filename (str): The name of the output video file.
+        fps (int): Frames per second for the video.
+        targetImg_path (str): Path to the target image.
+        video_duration (int): Duration of the video in seconds.
+        particles (ndarray): Array containing particle data [x, y, radius].
+        """
         self.filename = filename
         self.fps = fps
-        self.targetIm = targetImg
+        self.targetIm = np.array(Image.open(targetImg_path))
         self.frame = np.zeros_like(self.targetIm)
-        self.particles_queue = []
+        self.particles = [particles[i, :] for i in range(particles.shape[0])]
         self.video_duration = video_duration
-        # print(particles)
-        self.particles = [particles[i,:] for i in range(particles.shape[0])]
-        self.spawn_times = self.generate_spawn_time_for_particules()
+        self.particles_queue = []
+        self.spawn_times = self.generate_spawn_time_for_particles()
         self.number_end = 0
 
     def Nbr_particles_per_second(self, t):
+        """
+        Calculate the number of particles to spawn each second.
+        
+        Parameters:
+        t (int): Current time in frames.
+        
+        Returns:
+        int: Number of particles to spawn.
+        """
         if t < self.fps:
             return 0
-        elif len(self.particles) > (int(len(self.particles)/(2**self.video_duration+1))+1)*(2**(t // self.fps)-1):
-            return (int(len(self.particles)/(2**self.video_duration+1))+1)*2**(t // self.fps -1)
-        elif len(self.particles) > (int(len(self.particles)/(2**self.video_duration+1))+1)*(2**(t // self.fps-1)-1):
-            return len(self.particles) - (int(len(self.particles)/(2**self.video_duration+1))+1)*(2**(t // self.fps-1)-1)
+        elif len(self.particles) > (int(len(self.particles) / (2 ** self.video_duration + 1)) + 1) * (2 ** (t // self.fps) - 1):
+            return (int(len(self.particles) / (2 ** self.video_duration + 1)) + 1) * 2 ** (t // self.fps - 1)
+        elif len(self.particles) > (int(len(self.particles) / (2 ** self.video_duration + 1)) + 1) * (2 ** (t // self.fps - 1) - 1):
+            return len(self.particles) - (int(len(self.particles) / (2 ** self.video_duration + 1)) + 1) * (2 ** (t // self.fps - 1) - 1)
         else:
             return 0
 
-    def generate_spawn_time_for_particules(self):
+    def generate_spawn_time_for_particles(self):
+        """
+        Generate spawn times for particles.
+        
+        Returns:
+        list: List of spawn times in frames.
+        """
         spawn_times = []
-        for t in range(1,self.video_duration):
-            Nbr_particle = self.Nbr_particles_per_second(t*self.fps)
-            # print(t*self.fps,Nbr_particle)
-            spawn = list(np.sort(np.random.randint((t-1)*self.fps, high=t*self.fps, size=Nbr_particle, dtype=int)))
+        for t in range(1, self.video_duration):
+            Nbr_particle = self.Nbr_particles_per_second(t * self.fps)
+            spawn = list(np.sort(np.random.randint((t - 1) * self.fps, high=t * self.fps, size=Nbr_particle, dtype=int)))
             for spawn_time in spawn:
                 spawn_times.append(spawn_time)
-        # print(spawn_times)
         return spawn_times
 
     def update_particles_queue_time(self):
+        """
+        Update the time for particles in the queue.
+        """
         for particle in self.particles_queue:
-            #particle = [x,y,radius,relative_time]
-            if particle[3] != -1 and particle[3]*6/self.fps < 6:
-                #growing phase
-                # print('growing: ', particle,self.Nbr_particles_per_second(particle[4]))
-                # print(particle[3],particle[3]*6/self.fps * self.Nbr_particles_per_second(particle[4]))
-                particle[3]+=1
-                # particle[2] = particle[2]*(1-np.exp(-particle[3]*6/self.fps * self.Nbr_particles_per_second))
+            if particle[3] != -1 and particle[3] * 6 / self.fps < 6:
+                particle[3] += 1
             else:
-                # the particle reached its max radius and need to be removed from the queue after been drawn
-                #print('end: ', particle)
-                #print(particle[3],particle[3]*6/self.fps * self.Nbr_particles_per_second(particle[4]))
-                self.number_end+=1
+                self.number_end += 1
                 particle[3] = -1
 
-    def timed_radius(self,rad,t,t_spawn):
+    def timed_radius(self, rad, t, t_spawn):
+        """
+        Calculate the radius of a particle based on the time since its spawn.
+        
+        Parameters:
+        rad (float): Initial radius of the particle.
+        t (int): Time since the particle spawned in frames.
+        t_spawn (int): Spawn time of the particle in frames.
+        
+        Returns:
+        float: Adjusted radius of the particle.
+        """
         if t >= 0:
-            # print('Nbr_particle test: ',self.Nbr_particles_per_second((t_spawn//self.fps +1)*self.fps), 't_spawn :',t_spawn)
-            #print([self.Nbr_particles_per_second(t) for t in self.spawn_times])
-            return rad*(1-np.exp(-t*6/self.fps))  #* self.Nbr_particles_per_second((t_spawn//self.fps +1)*self.fps))
+            return rad * (1 - np.exp(-t * 6 / self.fps))
         else:
             return rad
 
     def video_generation(self):
+        """
+        Generate the video with particles.
+        """
+        video = cv2.VideoWriter(f'{self.filename}.avi', cv2.VideoWriter_fourcc(*'DIVX'), fps=self.fps, frameSize=(self.targetIm.shape[1], self.targetIm.shape[0]))
 
-        video=cv2.VideoWriter(f'{self.filename}.avi',cv2.VideoWriter_fourcc(*'DIVX'),fps = self.fps , frameSize=(self.targetIm.shape[1],self.targetIm.shape[0]))
-
-        #print([self.Nbr_particles_per_second(t) for t in self.spawn_times])
-
-        particle_counter=0
-        for t in tqdm(range(self.fps*self.video_duration)):
-            #print(f'spawn time {particle_counter}', self.spawn_times[particle_counter])
-            if particle_counter<len(self.spawn_times):
-
+        particle_counter = 0
+        t_morph = None
+        countdown_t_morph = 2*self.fps
+        morph_duration = 2*self.fps
+        
+        for t in tqdm(range(self.fps * self.video_duration)):
+            if particle_counter < len(self.spawn_times):
                 while self.spawn_times[particle_counter] == t:
                     x, y, radius = self.particles.pop(0)
-                    self.particles_queue.append([x, y, radius, 0, t])#zero represents the time since its spawn and t the spawn time
-                    if particle_counter<len(self.spawn_times)-1:
-                        particle_counter+=1
+                    self.particles_queue.append([x, y, radius, 0, t])
+                    if particle_counter < len(self.spawn_times) - 1:
+                        particle_counter += 1
                     else:
                         break
-                # print(self.spawn_times)
-                # self.spawn_times = self.spawn_times[i:]
-                # print(self.spawn_times)
-                # print('   ')
+
             x_coord = []
             y_coord = []
             radius = []
-
             ind_filter = []
             for i in range(len(self.particles_queue)):
                 x, y, rad, t_since_spawn, spawn_time = self.particles_queue[i]
                 x_coord.append(x)
                 y_coord.append(y)
-                radius.append(self.timed_radius(rad,t_since_spawn,spawn_time))
+                radius.append(self.timed_radius(rad, t_since_spawn, spawn_time))
                 if t_since_spawn != -1:
                     ind_filter.append(i)
-            #print(ind_filter)
-            self.particles_queue = [self.particles_queue[i] for i in ind_filter]
 
+            self.particles_queue = [self.particles_queue[i] for i in ind_filter]
             self.update_particles_queue_time()
 
-            if len(x_coord)>0:
-                # print(t//self.fps)
-                # print(self.particles_queue)
-                # print(np.array(radius))
-                # print(' ')
+            if len(x_coord) > 0:
                 self.frame = Draw_particules(self.targetIm, self.frame, np.array(x_coord), np.array(y_coord), np.array(radius))
+                video.write(video.write(cv2.cvtColor(self.frame.astype(np.uint8), cv2.COLOR_BGR2RGB)))
+            # Adding morphing effect
+            if len(self.particles) == 0:
+                if t_morph == None and countdown_t_morph>0:
+                    countdown_t_morph -= 1
+                    
+                else: t_morph = t
                 
-
-            video.write(self.frame.astype(np.uint8))
-        
-        # Adding morphing effect
-        morph_duration = self.fps * 2  # morphing duration of 2 seconds
-        for i in range(morph_duration):
-            alpha = i / morph_duration
-            morphed_frame = cv2.addWeighted(self.frame, 1 - alpha, self.targetIm, alpha, 0)
-            video.write(morphed_frame.astype(np.uint8))
+                if t - t_morph < morph_duration:
+                    alpha = t - t_morph / morph_duration
+                    morphed_frame = cv2.addWeighted(self.frame, 1 - alpha, self.targetIm, alpha, 0)
+                    video.write(cv2.cvtColor(morphed_frame.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                
+                else: video.write(cv2.cvtColor(morphed_frame.astype(np.uint8), cv2.COLOR_BGR2RGB))
 
         video.release()
-        print('Number of particles that ended growing: ',self.number_end)
+        print('Number of particles that ended growing: ', self.number_end)
 
-def generate_particles(targetImg_path, number_gen, scoring = 'entropy'):
+def generate_particles(targetImg_path, number_gen, particles_per_gen):
     targetImg = np.array(Image.open(targetImg_path))
     genImg = np.zeros_like(targetImg)
     ds_coef = 16
@@ -155,7 +175,7 @@ def generate_particles(targetImg_path, number_gen, scoring = 'entropy'):
         particle_found = False
         
         while particle_found == False:
-            gen = Particles(10, 1, targetImg, genImg, ds_coef)
+            gen = Particles(particles_per_gen, 1, targetImg, genImg, ds_coef)
             # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
             # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
             gen.keep_n_best(n=2)
@@ -189,9 +209,9 @@ def generate_particles(targetImg_path, number_gen, scoring = 'entropy'):
     
     return f'{targetImg_path}_{len(particles)}_particles.npy'
 
-def main(target_Img_path, nbr_gen):
+def main(target_Img_path, nbr_gen, particles_per_gen):
     start = time.time() 
-    path_generated_particles = generate_particles(target_Img_path,nbr_gen,scoring ='intensity')
+    path_generated_particles = generate_particles(target_Img_path,nbr_gen,particles_per_gen)
     # plt.plot(mean_rad)
     with open(path_generated_particles, 'rb') as f:
         particles = np.load(f)
@@ -210,6 +230,7 @@ if __name__=='__main__':
     
     parser.add_argument('filename') 
     parser.add_argument('nbr_gen')
+    parser.add_argument('particles_per_gen')
     args = parser.parse_args()
-    main(args.filename, int(args.nbr_gen))
+    main(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
 
