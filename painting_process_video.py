@@ -144,21 +144,22 @@ class Video_particle_manager:
 
             if len(x_coord) > 0:
                 self.frame = Draw_particules(self.targetIm, self.frame, np.array(x_coord), np.array(y_coord), np.array(radius))
-                video.write(video.write(cv2.cvtColor(self.frame.astype(np.uint8), cv2.COLOR_BGR2RGB)))
+                video.write(cv2.cvtColor(self.frame.astype(np.uint8), cv2.COLOR_RGB2BGR))
             # Adding morphing effect
             if len(self.particles) == 0:
                 if t_morph == None and countdown_t_morph>0:
                     countdown_t_morph -= 1
                     
                 else: 
-                    t_morph = t
+                    if t_morph == None:
+                        t_morph = t
                 
                     if t - t_morph <= morph_duration:
-                        alpha = t - t_morph / morph_duration
-                        morphed_frame = cv2.addWeighted(self.frame, 1 - alpha, self.targetIm, alpha, 0)
-                        video.write(cv2.cvtColor(morphed_frame.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                        alpha = (t - t_morph) / morph_duration
+                        morphed_frame = cv2.addWeighted(cv2.cvtColor(self.frame, cv2.COLOR_RGB2BGR), 1 - alpha, cv2.cvtColor(self.targetIm, cv2.COLOR_RGB2BGR), alpha, 0)
+                        video.write(morphed_frame)
                     
-                    else: video.write(cv2.cvtColor(morphed_frame.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                    else: video.write(cv2.cvtColor(self.targetIm, cv2.COLOR_RGB2BGR))
 
         video.release()
         print('Number of particles that ended growing: ', self.number_end)
