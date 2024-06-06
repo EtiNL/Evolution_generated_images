@@ -243,7 +243,7 @@ class Video_particle_manager:
                 # print(self.particles_queue)
                 # print(np.array(radius))
                 # print(' ')
-                self.frame = Draw_circles(self.targetIm, self.frame, np.array(x_coord), np.array(y_coord), np.array(radius))
+                self.frame = Draw_particules(self.targetIm, self.frame, np.array(x_coord), np.array(y_coord), np.array(radius))
 
             video.write(self.frame.astype(np.uint8))
 
@@ -260,7 +260,7 @@ def generate_particles(targetImg,number_gen,filename, scoring = 'entropy'):
     for i in tqdm(range(number_gen)):
         radius_mean = []
         particle_found = False
-        gen = Particles(100  , 1, targetImg, genImg, ds_coef, scoring)
+        gen = Particles(100  , 1, targetImg, genImg, ds_coef)
         # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
         # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
         gen.keep_n_best(n=20)
