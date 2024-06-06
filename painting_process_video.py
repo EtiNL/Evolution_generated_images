@@ -233,9 +233,9 @@ if __name__=='__main__':
     parser.add_argument('filename') 
     parser.add_argument('nbr_gen')
     parser.add_argument('particles_per_gen')
-    # args = parser.parse_args()
-    # main(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
-    with open("La_force_des_vagues.JPG_200_particles.npy", 'rb') as f:
-        particles = np.load(f)
-    Video_particle_manager("La_force_des_vagues_particles",24,"La_force_des_vagues.JPG",20,particles).video_generation()
+    args = parser.parse_args()
+    main(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
+    # with open("La_force_des_vagues.JPG_200_particles.npy", 'rb') as f:
+    #     particles = np.load(f)
+    # Video_particle_manager("La_force_des_vagues_particles",24,"La_force_des_vagues.JPG",20,particles).video_generation()
 
