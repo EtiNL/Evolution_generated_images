@@ -140,9 +140,10 @@ def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius):
     return res
 class Video_particle_manager:
 
-    def __init__(self,filename,fps,targetImg,video_duration,particles):
+    def __init__(self,filename,fps,targetImg_path,video_duration,particles):
         """Handle the particles that have been selected and draw them doubling the number of drawn particles each second
         and draw them at a random time within the second_frame"""
+        targetImg = np.array(Image.open(targetImg_path))
         self.filename = filename
         self.fps = fps
         self.targetIm = targetImg
@@ -250,61 +251,66 @@ class Video_particle_manager:
         video.release()
         print('Number of particles that ended growing: ',self.number_end)
 
-def generate_particles(targetImg,number_gen,filename, scoring = 'entropy'):
-    genImg = np.ones_like(targetImg)*255
-    ds_coef = 1
+def generate_particles(targetImg_path, number_gen, scoring = 'entropy'):
+    targetImg = np.array(Image.open(targetImg_path))
+    genImg = np.zeros_like(targetImg)
+    ds_coef = 16
 
     particles = []
-    Mean_rad = []
+    loss_val = loss(targetImg, genImg)
 
     for i in tqdm(range(number_gen)):
         radius_mean = []
         particle_found = False
-        gen = Particles(100  , 1, targetImg, genImg, ds_coef)
-        # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
-        # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-        gen.keep_n_best(n=20)
-        # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-        gen.generate_noise(0.2)
-        # if intermediary_show: cv2.imshow(f"gen{i}_noise", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-        gen.keep_n_best()
-        genImg = gen.draw_particules()
-        # print(loss_gen, loss_val)
-        # print(' ')
-        particles.append([gen.scale(gen.center_pos_x[0]),gen.scale(gen.center_pos_y[0]), gen.scale(gen.radius[0])])
-        radius_mean.append(gen.radius[0])
-        # cv2.imshow(f"gen{i}", cv2.cvtColor(genImg, cv2.COLOR_RGB2BGR))
+        
+        while particle_found == False:
+            gen = Particles(20, 1, targetImg, genImg, ds_coef)
+            # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
+            # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
+            gen.keep_n_best(n=5)
+            # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
+            gen.generate_noise(0.1)
+            # if intermediary_show: cv2.imshow(f"gen{i}_noise", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
+            gen.keep_n_best()
+            radius_mean, loss_val, genImg, particle_found = gen.draw_particules(radius_mean, loss_val)
+            # print(loss_gen, loss_val)
+            # print(' ')
+            if particle_found:
+                particles.append([gen.scale(gen.center_pos_x[0]),gen.scale(gen.center_pos_y[0]), gen.scale(gen.radius[0])])
+                radius_mean.append(gen.radius[0])
+            if len(radius_mean)>=10:
+                radius_mean.pop(0)
+            # cv2.imshow(f"gen{i}", cv2.cvtColor(genImg, cv2.COLOR_RGB2BGR))
 
 
-        if i%10==0:
-            # print(np.mean(np.array(radius_mean)))
-            # if np.mean(np.array(radius_mean)) < 5: #and ds_coef>4:
-                # ds_coef = int(ds_coef//2)
-            Mean_rad.append(np.mean(gen.scale(np.array(radius_mean))))
-            radius_mean = []
+        if np.mean(np.array(radius_mean)) < 5:
+            ds_coef = int(ds_coef//2)
+            print(f'Gen {i}, ds_coef = {ds_coef}')
+            if ds_coef < 2 and np.mean(np.array(radius_mean)) < 2:
+                break
 
     # cv2.waitKey(0)
 
-    with open(f'{filename}.npy', 'wb') as f:
+    with open(f'{targetImg_path}_{len(particles)}_particles.npy', 'wb') as f:
         np.save(f, np.array(particles))
 
-    print(f'Sucessfully created and saved particles at {filename}.npy')
-    return Mean_rad
+    print(f'Sucessfully created and saved {len(particles)} particles')
+    
+    return f'{targetImg_path}_{len(particles)}_particles.npy'
 
-
-
-if __name__=='__main__':
-    import matplotlib.pyplot as plt
+def main(target_Img_path, nbr_gen):
     start = time.time()
-    targetImg = np.array(Image.open('/content/drive/MyDrive/La_force_des_vagues.JPG'))
-    mean_rad = generate_particles(targetImg,20000,'points_20000',scoring ='intensity')
+    path_generated_particles = generate_particles(target_Img_path,nbr_gen,scoring ='intensity')
     # plt.plot(mean_rad)
-    with open('points_20000.npy', 'rb') as f:
+    with open(path_generated_particles, 'rb') as f:
         particles = np.load(f)
     execution_time = time.time() - start
     print(execution_time//(60*60),'h ', execution_time//60-(execution_time//(60*60))*60,'min ', round(execution_time%60))
     start = time.time()
-    Video_particle_manager('points_20000.npy',24,targetImg,20,particles).video_generation()
+    Video_particle_manager(path_generated_particles,24,target_Img_path,20,particles).video_generation()
     execution_time = time.time() - start
     print(execution_time//(60*60),'h ', execution_time//60-(execution_time//(60*60))*60,'min ', round(execution_time%60))
+
+if __name__=='__main__':
+    main('./La_force_des_vagues.JPG', 100)
 

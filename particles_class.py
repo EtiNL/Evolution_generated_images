@@ -141,14 +141,15 @@ class Particles:
     def scale(self,arr):
         return self.ds_coef * arr
 
-    def draw_particules(self, previous_loss, rad):
+    def draw_particules(self, rad, previous_loss):
 
         new_img = Draw_particules(self.target_img, np.copy(self.particle_img), self.scale(self.center_pos_x), self.scale(self.center_pos_y), self.scale(self.radius))
 
         loss_val = loss(self.target_img, new_img)
         if previous_loss < loss_val:
-            return rad, previous_loss, self.particle_img
+            return rad, previous_loss, self.particle_img, False
 
         else:
             rad.append(self.radius[0])
-            return rad, loss_val, new_img
+            return rad, loss_val, new_img, True
+    
