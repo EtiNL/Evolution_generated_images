@@ -133,9 +133,9 @@ class Particles:
                 r_noise = float((np.random.rand(1)-0.5)*2)*level*self.max_radius
                 if r_noise+r<2: r_noise = 0
                 radius_noise.append(r+r_noise)
-        self.center_pos_x = np.array(pos_x_noise)
-        self.center_pos_y = np.array(pos_y_noise)
-        self.radius = np.array(radius_noise)
+        self.center_pos_x = np.clip(np.array(pos_x_noise), 0, self.ds_target_img.shape[1] - 1)
+        self.center_pos_y = np.clip(np.array(pos_y_noise), 0, self.ds_target_img.shape[0] - 1)
+        self.radius = np.clip(np.array(radius_noise), 2, self.max_radius)
         self.score = self.get_score()
 
     def scale(self,arr):

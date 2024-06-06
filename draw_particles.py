@@ -6,6 +6,7 @@ import pycuda.autoinit             # PyCuda autoinit
 import numpy
 import numpy as np
 import cv2 as cv
+from gpu_utils import get_max_threads_per_block
 
 kernel_draw_circles = """
 
@@ -86,8 +87,7 @@ kernel_draw_circles = """
 
 
 def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius):
-
-    #Compile and get kernel function
+    # Compile and get kernel function
     mod = SourceModule(kernel_draw_circles)
     circle_func = mod.get_function("draw_circles")
 
@@ -101,30 +101,40 @@ def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius):
 
     x_coordinates = numpy.array(center_pos_x).astype(numpy.float32)
     x_coord = cuda.mem_alloc(x_coordinates.nbytes)
-    cuda.memcpy_htod(x_coord,x_coordinates)
+    cuda.memcpy_htod(x_coord, x_coordinates)
 
     y_coordinates = numpy.array(center_pos_y).astype(numpy.float32)
     y_coord = cuda.mem_alloc(y_coordinates.nbytes)
-    cuda.memcpy_htod(y_coord,y_coordinates)
+    cuda.memcpy_htod(y_coord, y_coordinates)
 
     radius = numpy.array(radius).astype(numpy.float32)
     radius_cuda = cuda.mem_alloc(radius.nbytes)
-    cuda.memcpy_htod(radius_cuda,radius)
+    cuda.memcpy_htod(radius_cuda, radius)
 
-    # print(x_coordinates)
-    # print(y_coordinates)
+    # Debugging information
+    # print(f"px_target shape: {px_target.shape}, px_target size: {px_target.size}")
+    # print(f"x_coordinates shape: {x_coordinates.shape}, x_coordinates: {x_coordinates}")
+    # print(f"y_coordinates shape: {y_coordinates.shape}, y_coordinates: {y_coordinates}")
+    # print(f"radius shape: {radius.shape}, radius: {radius}")
 
-    BLOCK_SIZE = 1024
-    block = (BLOCK_SIZE,1,1)
-    totalPixels = numpy.int32(targetIm.shape[0]*targetIm.shape[1])
-    gridRounded=int(targetIm.shape[0]*targetIm.shape[1]/BLOCK_SIZE)+1
-    grid = (gridRounded,1,1)
+    BLOCK_SIZE = get_max_threads_per_block()
+    block = (BLOCK_SIZE, 1, 1)
+    totalPixels = numpy.int32(targetIm.shape[0] * targetIm.shape[1])
+    gridRounded = int(targetIm.shape[0] * targetIm.shape[1] / BLOCK_SIZE) + 1
+    grid = (gridRounded, 1, 1)
 
-    circle_func(d_px_test, d_px_target, numpy.int32(len(radius)), totalPixels, x_coord, y_coord, radius_cuda, numpy.int32(targetIm.shape[1]) ,block=block,grid = grid)
+    try:
+        circle_func(d_px_test, d_px_target, numpy.int32(len(radius)), totalPixels, x_coord, y_coord, radius_cuda, numpy.int32(targetIm.shape[1]), block=block, grid=grid)
+        cuda.Context.synchronize()  # Synchronize to catch errors early
+    except pycuda._driver.LogicError as e:
+        print(f"totalPixels: {totalPixels}, grid: {grid}, block: {block}")
+        print(f"CUDA Error: {e}")
 
     res = numpy.empty_like(px_target)
-    cuda.memcpy_dtoh(res, d_px_test)
+    try:
+        cuda.memcpy_dtoh(res, d_px_test)
+    except pycuda._driver.LogicError as e:
+        print(f"CUDA Error during memcpy_dtoh: {e}")
 
     res = (numpy.uint8(res))
-    # pil_im = Image.fromarray(bwPx,mode ="RGB")
     return res
