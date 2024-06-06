@@ -17,7 +17,7 @@ def main(target_img_path, number_gen, intermediary_show = False):
         radius = []
 
         gen = Particles(50, 1, targetIm, genIm, ds_coef)
-        cv2.imshow(f"Target", cv2.cvtColor(targetIm, cv2.COLOR_RGB2BGR))
+        # cv2.imshow(f"Target", cv2.cvtColor(targetIm, cv2.COLOR_RGB2BGR))
         # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
         gen.keep_n_best(n=10)
         # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
@@ -33,15 +33,15 @@ def main(target_img_path, number_gen, intermediary_show = False):
             if np.mean(np.array(radius)) < 5 and ds_coef>2:
                 ds_coef = int(ds_coef//2)
             radius = []
-            cv2.imshow(f"gen{i}", cv2.cvtColor(genIm, cv2.COLOR_RGB2BGR))
+            # cv2.imshow(f"gen{i}", cv2.cvtColor(genIm, cv2.COLOR_RGB2BGR))
             start = time.time()
         elif i%10==0 and not intermediary_show: print(f'gen_{i} loss = ', loss_val)
 
 
 
 
-    cv2.imshow(f"gen{i}", cv2.cvtColor(genIm, cv2.COLOR_RGB2BGR))
+    # cv2.imshow(f"gen{i}", cv2.cvtColor(genIm, cv2.COLOR_RGB2BGR))
     cv2.waitKey(0)
 
 if __name__=='__main__':
-    main('/content/drive/MyDrive/La_force_des_vagues.JPG', 10000, intermediary_show = False)
+    main('/content/drive/MyDrive/La_force_des_vagues.JPG', 20000, intermediary_show = False)

@@ -131,12 +131,12 @@ def generate_particles(targetImg,number_gen,filename, scoring = 'entropy'):
     for i in tqdm(range(number_gen)):
         radius_mean = []
         particle_found = False
-        gen = Particles(50  , 1, targetImg, genImg, ds_coef, scoring)
+        gen = Particles(100  , 1, targetImg, genImg, ds_coef, scoring)
         # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
         # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-        gen.keep_n_best(n=10)
+        gen.keep_n_best(n=20)
         # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
-        gen.generate_noise(0.1)
+        gen.generate_noise(0.2)
         # if intermediary_show: cv2.imshow(f"gen{i}_noise", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
         gen.keep_n_best()
         genImg = gen.draw_particules()
@@ -167,15 +167,15 @@ def generate_particles(targetImg,number_gen,filename, scoring = 'entropy'):
 if __name__=='__main__':
     import matplotlib.pyplot as plt
     start = time.time()
-    targetImg = np.array(Image.open('raw_data/point.jpg'))
-    mean_rad = generate_particles(targetImg,100,'raw_data/points_100',scoring ='intensity')
+    targetImg = np.array(Image.open('/content/drive/MyDrive/La_force_des_vagues.JPG'))
+    mean_rad = generate_particles(targetImg,20000,'points_20000',scoring ='intensity')
     # plt.plot(mean_rad)
-    with open('raw_data/points_100.npy', 'rb') as f:
+    with open('points_20000.npy', 'rb') as f:
         particles = np.load(f)
     execution_time = time.time() - start
     print(execution_time//(60*60),'h ', execution_time//60-(execution_time//(60*60))*60,'min ', round(execution_time%60))
     start = time.time()
-    Video_particle_manager('raw_data/points_10',24,targetImg,20,particles).video_generation()
+    Video_particle_manager('points_20000.npy',24,targetImg,20,particles).video_generation()
     execution_time = time.time() - start
     print(execution_time//(60*60),'h ', execution_time//60-(execution_time//(60*60))*60,'min ', round(execution_time%60))
-    plt.show()
+
