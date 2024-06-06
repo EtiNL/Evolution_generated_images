@@ -234,6 +234,7 @@ if __name__=='__main__':
     parser.add_argument('nbr_gen')
     parser.add_argument('particles_per_gen')
     args = parser.parse_args()
+    print(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
     main(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
     # with open("La_force_des_vagues.JPG_200_particles.npy", 'rb') as f:
     #     particles = np.load(f)
