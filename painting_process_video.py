@@ -1,4 +1,5 @@
 from particles_class import Particles
+import argparse
 import numpy as np
 import cv2
 import time
@@ -312,5 +313,13 @@ def main(target_Img_path, nbr_gen):
     print(execution_time//(60*60),'h ', execution_time//60-(execution_time//(60*60))*60,'min ', round(execution_time%60))
 
 if __name__=='__main__':
-    main('./La_force_des_vagues.JPG', 100)
+    parser = argparse.ArgumentParser(
+                    prog='Generate video',
+                    description='',
+                    epilog='')
+    
+    parser.add_argument('filename') 
+    parser.add_argument('nbr_gen')
+    args = parser.parse_args()
+    main(args.filename, int(args.nbr_gen))
 
