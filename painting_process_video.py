@@ -152,7 +152,7 @@ class Video_particle_manager:
                     
                 else: t_morph = t
                 
-                if t - t_morph < morph_duration:
+                if t - t_morph <= morph_duration:
                     alpha = t - t_morph / morph_duration
                     morphed_frame = cv2.addWeighted(self.frame, 1 - alpha, self.targetIm, alpha, 0)
                     video.write(cv2.cvtColor(morphed_frame.astype(np.uint8), cv2.COLOR_BGR2RGB))
