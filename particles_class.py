@@ -108,7 +108,7 @@ class Particles:
         # print(self.center_pos_x)
         # print(self.center_pos_y)
 
-    def generate_noise(self, level, nbr_derivates = 3):
+    def generate_noise(self, level, nbr_derivates = 2):
         pos = zip(list(self.center_pos_x),list(self.center_pos_y),list(self.radius))
         pos_x_noise = []
         pos_y_noise = []

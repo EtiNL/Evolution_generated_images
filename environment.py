@@ -4,12 +4,14 @@ from gym import spaces
 from PIL import Image
 from draw_particles import Draw_particules
 from score import loss
+import cv2
 
 class CustomEnv(gym.Env):
     def __init__(self, targetImg_path):
         super(CustomEnv, self).__init__()
         
         self.target = np.array(Image.open(targetImg_path)).astype(np.uint8)
+        self.target = cv2.resize(self.target, (self.target.shape[1]//3, self.target.shape[0]//3))
         self.toile = np.zeros_like(self.target).astype(np.uint8)
         self.previous_loss = loss(self.target, self.toile)
         
