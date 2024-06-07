@@ -3,7 +3,7 @@ from environment import CustomEnv
 from agent import Agent
 import argparse
 
-def train(env, agent, num_episodes=1000):
+def train(env, agent, num_episodes=10):
     for episode in range(num_episodes):
         state = env.reset()
         total_reward = 0
@@ -16,7 +16,7 @@ def train(env, agent, num_episodes=1000):
             state = next_state
             total_reward += reward
 
-        print(f"Episode {episode + 1}: Total Reward = {total_reward}")
+        print(f"Episode {episode + 1}: Total Reward = {total_reward}, Epsilon = {agent.epsilon}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
