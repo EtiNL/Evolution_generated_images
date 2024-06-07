@@ -25,4 +25,3 @@ if __name__ == "__main__":
     agent = Agent(input_shape, env.action_space.shape[0])  # Adjust input dimension for CNN
     
     train(env, agent)
-

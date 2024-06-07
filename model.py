@@ -16,8 +16,9 @@ class DQN_CNN(nn.Module):
         conv_h = conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[2], 8, 4), 4, 2), 3, 1)
         linear_input_size = conv_w * conv_h * 64
 
-        self.fc1 = nn.Linear(linear_input_size, 512)
-        self.fc2 = nn.Linear(512, output_dim)
+        # Reduce the size of the fully connected layers
+        self.fc1 = nn.Linear(linear_input_size, 256)  # Reduced from 512 to 256
+        self.fc2 = nn.Linear(256, output_dim)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -25,5 +26,5 @@ class DQN_CNN(nn.Module):
         x = F.relu(self.conv3(x))
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
-        x = torch.sigmoid(self.fc2(x))
+        x = self.fc2(x)
         return x

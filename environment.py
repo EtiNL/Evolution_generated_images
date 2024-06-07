@@ -2,8 +2,8 @@ import numpy as np
 import gym
 from gym import spaces
 from PIL import Image
-from ..draw_particles import Draw_particules
-from ..score import loss
+from draw_particles import Draw_particules
+from score import loss
 
 class CustomEnv(gym.Env):
     def __init__(self, targetImg_path):
@@ -22,14 +22,14 @@ class CustomEnv(gym.Env):
     def reset(self):
         self.current_step = 0
         self.toile = np.zeros_like(self.target).astype(np.uint8)
-        return np.sum(np.abs(self.target-self.toile), axis=2)/np.max(np.abs(self.target-self.toile))
+        return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
     
     def step(self, action):
         self.current_step += 1
         x_pos, y_pos, radius = action
-        x_pos, y_pos, radius = x_pos*self.data.shape[0], y_pos*self.data.shape[1], max(1,radius*min(self.data.shape)/2)
+        x_pos, y_pos, radius = x_pos * self.target.shape[0], y_pos * self.target.shape[1], max(1, radius * min(self.target.shape[:2]) / 2)
         self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius)
-        next_state = np.sum(np.abs(self.target-self.toile), axis=2)/np.max(np.abs(self.target-self.toile))
+        next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         current_loss = loss(self.target, self.toile)
         reward = self.previous_loss - current_loss
         self.previous_loss = current_loss
@@ -41,4 +41,3 @@ class CustomEnv(gym.Env):
     
     def close(self):
         pass
-
