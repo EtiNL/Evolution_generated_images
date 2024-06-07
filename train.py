@@ -1,6 +1,7 @@
 import numpy as np
 from environment import CustomEnv
 from agent import Agent
+import argparse
 
 def train(env, agent, num_episodes=1000):
     for episode in range(num_episodes):
@@ -18,9 +19,15 @@ def train(env, agent, num_episodes=1000):
         print(f"Episode {episode + 1}: Total Reward = {total_reward}")
 
 if __name__ == "__main__":
-    targetImg_path = 'La_force_des_vagues.JPG'
-
-    env = CustomEnv(targetImg_path)
+    targetImg_path = 'Evolution_generated_images/La_force_des_vagues.JPG'
+    parser = argparse.ArgumentParser(
+                    prog='',
+                    description='',
+                    epilog='')
+    
+    parser.add_argument('filename') 
+    args = parser.parse_args()
+    env = CustomEnv(args.filename)
     input_shape = (1, env.observation_space.shape[0], env.observation_space.shape[1])
     agent = Agent(input_shape, env.action_space.shape[0])  # Adjust input dimension for CNN
     
