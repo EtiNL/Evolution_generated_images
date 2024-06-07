@@ -21,13 +21,13 @@ class Agent:
         next_state = torch.FloatTensor(next_state).unsqueeze(0).unsqueeze(0)
         action = torch.FloatTensor(action).unsqueeze(0)
         reward = torch.FloatTensor([reward])
-        done = torch.FloatTensor([done])
+        done = torch.tensor([done], dtype=torch.float32)
 
         q_values = self.model(state)
         next_q_values = self.model(next_state)
 
         q_target = reward + (1 - done) * next_q_values.max(1)[0]
-        q_expected = q_values.gather(1, action.long().unsqueeze(0))
+        q_expected = q_values.gather(1, action.argmax().unsqueeze(0).unsqueeze(1))
 
         loss = self.loss_fn(q_expected, q_target.unsqueeze(1))
         self.optimizer.zero_grad()

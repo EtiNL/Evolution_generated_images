@@ -19,10 +19,9 @@ def train(env, agent, num_episodes=1000):
         print(f"Episode {episode + 1}: Total Reward = {total_reward}")
 
 if __name__ == "__main__":
-    targetImg_path = 'Evolution_generated_images/La_force_des_vagues.JPG'
     parser = argparse.ArgumentParser(
-                    prog='',
-                    description='',
+                    prog='Train DQN Agent',
+                    description='Train a DQN agent on a custom environment.',
                     epilog='')
     
     parser.add_argument('filename') 
