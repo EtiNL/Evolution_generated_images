@@ -28,7 +28,7 @@ class CustomEnv(gym.Env):
         self.current_step += 1
         x_pos, y_pos, radius = action
         x_pos, y_pos, radius = x_pos * self.target.shape[0], y_pos * self.target.shape[1], max(1, radius * min(self.target.shape[:2]) / 2)
-        self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius)
+        self.toile = Draw_particules(self.target, self.toile, np.array(x_pos), np.array(y_pos), np.array(radius))
         next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         current_loss = loss(self.target, self.toile)
         reward = self.previous_loss - current_loss
