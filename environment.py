@@ -42,6 +42,7 @@ class CustomEnv(gym.Env):
         next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         current_loss = loss(self.target, self.toile)
         reward = self.previous_loss - current_loss
+        print("loss variation: ", reward)
         self.previous_loss = current_loss
         done = current_loss < 10
         return next_state, reward, done, {}
