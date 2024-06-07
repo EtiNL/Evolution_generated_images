@@ -15,7 +15,7 @@ class CustomEnv(gym.Env):
         
         # Define action and observation space
         self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.target.shape[0], self.target.shape[1]) , dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.target.shape[0], self.target.shape[1], 3), dtype=np.uint8)
         
         self.current_step = 0
     
@@ -27,8 +27,14 @@ class CustomEnv(gym.Env):
     def step(self, action):
         self.current_step += 1
         x_pos, y_pos, radius = action
-        x_pos, y_pos, radius = x_pos * self.target.shape[0], y_pos * self.target.shape[1], max(1, radius * min(self.target.shape[:2]) / 2)
-        self.toile = Draw_particules(self.target, self.toile, np.array(x_pos), np.array(y_pos), np.array(radius))
+        x_pos = np.array([x_pos * self.target.shape[1]])
+        y_pos = np.array([y_pos * self.target.shape[0]])
+        radius = np.array([max(1, radius * min(self.target.shape[:2]) / 2)])
+        
+        # Debugging output
+        print(f"x_pos: {x_pos}, y_pos: {y_pos}, radius: {radius}")
+        
+        self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius)
         next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         current_loss = loss(self.target, self.toile)
         reward = self.previous_loss - current_loss
