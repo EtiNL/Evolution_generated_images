@@ -171,6 +171,7 @@ def generate_particles(targetImg_path, number_gen, particles_per_gen):
 
     particles = []
     loss_val = loss(targetImg, genImg)
+    time_between_particles = time.time()
 
     for i in tqdm(range(number_gen)):
         radius_mean = []
@@ -195,8 +196,8 @@ def generate_particles(targetImg_path, number_gen, particles_per_gen):
                 radius_mean.pop(0)
             # cv2.imshow(f"gen{i}", cv2.cvtColor(genImg, cv2.COLOR_RGB2BGR))
 
-
-        if np.mean(np.array(radius_mean)) < 5:
+        time_between_particles = time.time()
+        if np.mean(np.array(radius_mean)) < 2:
             ds_coef = int(ds_coef//2)
             print(f'Gen {i}, ds_coef = {ds_coef}')
             if ds_coef < 2 and np.mean(np.array(radius_mean)) < 2:

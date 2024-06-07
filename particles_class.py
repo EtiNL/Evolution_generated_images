@@ -31,7 +31,7 @@ class Particles:
         for i in range(self.center_pos_x.shape[0]):
             epsilon = 2
             rad_plus = self.max_radius
-            rad_minus = 2
+            rad_minus = 1
             rad_mid = (rad_plus-rad_minus)/2
             loss_plus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_plus])))
             loss_minus = loss(self.ds_target_img, Draw_particules(self.ds_target_img, np.copy(self.ds_particle_img), np.array([self.center_pos_x[i]]), np.array([self.center_pos_y[i]]), np.array([rad_minus])))
@@ -135,7 +135,7 @@ class Particles:
                 radius_noise.append(r+r_noise)
         self.center_pos_x = np.clip(np.array(pos_x_noise), 0, self.ds_target_img.shape[1] - 1)
         self.center_pos_y = np.clip(np.array(pos_y_noise), 0, self.ds_target_img.shape[0] - 1)
-        self.radius = np.clip(np.array(radius_noise), 2, self.max_radius)
+        self.radius = np.clip(np.array(radius_noise), 1, self.max_radius)
         self.score = self.get_score()
 
     def scale(self,arr):
