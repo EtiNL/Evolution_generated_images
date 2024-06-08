@@ -7,7 +7,7 @@ from score import loss
 import cv2
 import os
 
-def load_and_resize_images(img_path, target_size=(64, 64)):
+def load_and_resize_images(img_path, target_size=(200, 200)):
     img = Image.open(img_path)
     img = img.resize(target_size)
     img_array = np.array(img)
@@ -61,7 +61,11 @@ class CustomEnv(gym.Env):
             reward -= 0.1  # Small penalty for no progress
 
         self.previous_loss = current_loss
-        done = current_loss/self.init_loss <= 0.2
+        if self.current_step < 5000:
+            done = current_loss/self.init_loss <= 0.2
+        else:
+            done = False
+            reward-=100
         if done: reward+=100
         return next_state, reward, done, {}
     def render(self, mode='human'):

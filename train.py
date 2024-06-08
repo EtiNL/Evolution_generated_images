@@ -1,3 +1,4 @@
+# train.py
 import numpy as np
 import os
 import random
@@ -25,16 +26,13 @@ def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
             state = next_state
             total_reward += reward
 
-        # Log to W&B
         wandb.log({"Episode": episode + 1, "Total Reward": total_reward, "Epsilon": agent.epsilon})
 
-        # print(f"Episode {episode + 1}: Total Reward = {total_reward}, Epsilon = {agent.epsilon}")
-
-        # Save the model periodically
-        # if (episode + 1) % 10 == 0:
-        #     torch.save(agent.model.state_dict(), f'model_episode_{episode + 1}.pth')
-
 def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64)):
+    if not image_paths:
+        print("No images found in the specified directory.")
+        return
+    
     random_image_path = random.choice(image_paths)
     env = CustomEnv(random_image_path)
     env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
@@ -53,7 +51,6 @@ if __name__ == "__main__":
     parser.add_argument('--buffer_capacity', type=int, default=10000, help='Capacity of the replay buffer')
     args = parser.parse_args()
 
-    # Initialize W&B
     wandb.init(project="DQN-training", config={
         "num_agents": args.num_agents,
         "num_episodes": args.num_episodes,
@@ -61,13 +58,19 @@ if __name__ == "__main__":
         "buffer_capacity": args.buffer_capacity
     })
 
-    input_shape = (1, 500, 500)
+    input_shape = (1, 200, 200)
     action_dim = 3
 
     replay_buffer = ReplayBuffer(args.buffer_capacity)
     agents = [Agent(input_shape, action_dim) for _ in range(args.num_agents)]
 
+    if not os.path.exists(training_folder_path):
+        raise FileNotFoundError(f"Training folder path {training_folder_path} does not exist.")
+
     image_paths = [os.path.join(training_folder_path, f) for f in os.listdir(training_folder_path) if f.endswith('.jpg') or f.endswith('.png')]
+
+    if not image_paths:
+        raise FileNotFoundError(f"No images found in the training folder path {training_folder_path}.")
 
     processes = []
     for agent in agents:
@@ -78,5 +81,4 @@ if __name__ == "__main__":
     for p in processes:
         p.join()
 
-    # Save the final model
     torch.save(agents[0].model.state_dict(), 'final_model.pth')
