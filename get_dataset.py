@@ -11,7 +11,7 @@ def download_and_extract(url, extract_to='.'):
 
 def get_images():
     # Download and extract the dataset
-    dataset_url = "http://www.vision.caltech.edu/Image_Datasets/Caltech101/101_ObjectCategories.tar.gz"
+    dataset_url = "https://data.caltech.edu/records/20086/files/101_ObjectCategories.tar.gz?download=1"
     print('Downloading images...')
     download_and_extract(dataset_url, 'caltech101')
     print('finished downloading')
