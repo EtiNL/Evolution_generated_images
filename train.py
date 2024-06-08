@@ -15,7 +15,7 @@ import asyncio
 import traceback
 
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
-    env.setup()  # Ensure the environment is properly set up
+    await env.setup()  # Ensure the environment is properly set up
     for episode in range(num_episodes):
         state = env.reset()
         total_reward = 0

@@ -37,7 +37,7 @@ class CustomEnv(gym.Env):
             self.target = load_and_resize_images(self.target_path)
             self.toile = np.zeros_like(self.target).astype(np.uint8)
             # print('loss computation...')
-            self.init_loss = loss(self.target, self.toile, self.semaphore)
+            self.init_loss = await loss(self.target, self.toile, self.semaphore)
             # print('finished loss computation')
             self.previous_loss = self.init_loss
             print(f"{self.target_path} Goal loss = {self.init_loss * 0.2}")
@@ -49,7 +49,7 @@ class CustomEnv(gym.Env):
         try:
             self.current_step = 0
             self.toile = np.zeros_like(self.target).astype(np.uint8)
-            self.previous_loss = loss(self.target, self.toile, self.semaphore)
+            self.previous_loss = await loss(self.target, self.toile, self.semaphore)
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         except Exception as e:
             print(f"Exception during reset: {e}")
@@ -67,9 +67,9 @@ class CustomEnv(gym.Env):
         radius = np.array([radius])
 
         try:
-            self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
+            self.toile = await Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
-            current_loss = loss(self.target, self.toile, self.semaphore)
+            current_loss = await loss(self.target, self.toile, self.semaphore)
             reward = self.previous_loss - current_loss
 
             if current_loss < self.previous_loss:
