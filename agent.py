@@ -43,32 +43,32 @@ class Agent:
         next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
         dones = torch.FloatTensor(np.array(dones))  # Shape: [batch_size]
 
-        print(f"states shape: {states.shape}")
-        print(f"actions shape: {actions.shape}")
-        print(f"rewards shape: {rewards.shape}")
-        print(f"next_states shape: {next_states.shape}")
-        print(f"dones shape: {dones.shape}")
+        # print(f"states shape: {states.shape}")
+        # print(f"actions shape: {actions.shape}")
+        # print(f"rewards shape: {rewards.shape}")
+        # print(f"next_states shape: {next_states.shape}")
+        # print(f"dones shape: {dones.shape}")
 
         q_values = self.model(states)  # Shape: [batch_size, action_dim]
         next_q_values = self.model(next_states)  # Shape: [batch_size, action_dim]
 
-        print(f"q_values shape: {q_values.shape}")
-        print(f"next_q_values shape: {next_q_values.shape}")
+        # print(f"q_values shape: {q_values.shape}")
+        # print(f"next_q_values shape: {next_q_values.shape}")
 
         # Ensure the actions are within the valid range
         actions = actions.clamp(0, self.action_dim - 1)  # Clamp actions to be within valid range
         actions = actions[:, 0]  # Use only the first dimension of actions for indexing
 
-        print(f"actions shape after clamping: {actions.shape}")
+        # print(f"actions shape after clamping: {actions.shape}")
 
         # Use the first dimension to gather q_values corresponding to actions
         q_expected = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
 
-        print(f"q_expected shape after gather: {q_expected.shape}")
+        # print(f"q_expected shape after gather: {q_expected.shape}")
 
         q_target = rewards + (1 - dones) * self.gamma * next_q_values.max(1)[0]
 
-        print(f"q_target shape: {q_target.shape}")
+        # print(f"q_target shape: {q_target.shape}")
 
         loss = self.loss_fn(q_expected, q_target)
         self.optimizer.zero_grad()

@@ -36,11 +36,11 @@ class CustomEnv(gym.Env):
         try:
             self.target = load_and_resize_images(self.target_path)
             self.toile = np.zeros_like(self.target).astype(np.uint8)
-            print('loss computation...')
+            # print('loss computation...')
             self.init_loss = await loss(self.target, self.toile, self.semaphore)
-            print('finished loss computation')
+            # print('finished loss computation')
             self.previous_loss = self.init_loss
-            print(f"Goal loss = {self.init_loss * 0.2}")
+            print(f"{self.target_path} Goal loss = {self.init_loss * 0.2}")
         except Exception as e:
             print(f"Exception during setup: {e}")
 
