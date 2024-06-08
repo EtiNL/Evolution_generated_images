@@ -38,7 +38,7 @@ class Agent:
 
         # Convert lists to tensors efficiently
         states = torch.FloatTensor(np.array(states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
-        actions = torch.FloatTensor(np.array(actions)).unsqueeze(1)  # Shape: [batch_size, 1, 3]
+        actions = torch.LongTensor(np.array(actions))  # Convert to LongTensor and remove unsqueeze
         rewards = torch.FloatTensor(np.array(rewards))  # Shape: [batch_size]
         next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
         dones = torch.FloatTensor(np.array(dones))  # Shape: [batch_size]
@@ -55,20 +55,22 @@ class Agent:
         print(f"q_values shape: {q_values.shape}")
         print(f"next_q_values shape: {next_q_values.shape}")
 
-        # Convert actions to long tensor and ensure correct shape for gather operation
-        actions = actions.squeeze(1).long()  # Shape: [batch_size, action_dim]
+        # Ensure the actions are within the valid range
+        actions = actions.clamp(0, self.action_dim - 1)  # Clamp actions to be within valid range
+        actions = actions[:, 0]  # Use only the first dimension of actions for indexing
+
+        print(f"actions shape after clamping: {actions.shape}")
 
         # Use the first dimension to gather q_values corresponding to actions
-        q_expected = q_values.gather(1, actions)
+        q_expected = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
 
-        print(f"actions shape after squeeze: {actions.shape}")
         print(f"q_expected shape after gather: {q_expected.shape}")
 
         q_target = rewards + (1 - dones) * self.gamma * next_q_values.max(1)[0]
 
         print(f"q_target shape: {q_target.shape}")
 
-        loss = self.loss_fn(q_expected, q_target.unsqueeze(1))
+        loss = self.loss_fn(q_expected, q_target)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
