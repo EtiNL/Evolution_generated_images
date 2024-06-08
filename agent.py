@@ -37,11 +37,11 @@ class Agent:
         states, actions, rewards, next_states, dones = zip(*experiences)
 
         # Convert lists to tensors efficiently
-        states = torch.FloatTensor(np.array(states)).unsqueeze(1)
-        actions = torch.FloatTensor(np.array(actions)).unsqueeze(1)
-        rewards = torch.FloatTensor(np.array(rewards))
-        next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)
-        dones = torch.FloatTensor(np.array(dones))
+        states = torch.FloatTensor(np.array(states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
+        actions = torch.FloatTensor(np.array(actions)).unsqueeze(1)  # Shape: [batch_size, 1, 3]
+        rewards = torch.FloatTensor(np.array(rewards))  # Shape: [batch_size]
+        next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
+        dones = torch.FloatTensor(np.array(dones))  # Shape: [batch_size]
 
         print(f"states shape: {states.shape}")
         print(f"actions shape: {actions.shape}")
@@ -49,17 +49,24 @@ class Agent:
         print(f"next_states shape: {next_states.shape}")
         print(f"dones shape: {dones.shape}")
 
-        q_values = self.model(states)
-        next_q_values = self.model(next_states)
+        q_values = self.model(states)  # Shape: [batch_size, action_dim]
+        next_q_values = self.model(next_states)  # Shape: [batch_size, action_dim]
 
         print(f"q_values shape: {q_values.shape}")
         print(f"next_q_values shape: {next_q_values.shape}")
 
+        # Convert actions to long tensor and ensure correct shape for gather operation
+        actions = actions.squeeze(1).long()  # Shape: [batch_size, action_dim]
+
+        # Use the first dimension to gather q_values corresponding to actions
+        q_expected = q_values.gather(1, actions)
+
+        print(f"actions shape after squeeze: {actions.shape}")
+        print(f"q_expected shape after gather: {q_expected.shape}")
+
         q_target = rewards + (1 - dones) * self.gamma * next_q_values.max(1)[0]
-        q_expected = q_values.gather(1, actions.argmax(dim=2).unsqueeze(1))
 
         print(f"q_target shape: {q_target.shape}")
-        print(f"q_expected shape: {q_expected.shape}")
 
         loss = self.loss_fn(q_expected, q_target.unsqueeze(1))
         self.optimizer.zero_grad()
