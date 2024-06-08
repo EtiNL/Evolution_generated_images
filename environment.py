@@ -95,7 +95,7 @@ async def main():
     semaphore = asyncio.Semaphore(1)
     image_path = 'trainning_images/c_sascha_fonseca_wildlife_photographer_of_the_year-taille1200_63877da71854f.jpg'
     env = CustomEnv(image_path, semaphore)
-    env.setup()
+    await env.setup()
     if not hasattr(env, 'target'):
         print(f"Image at {image_path} not found. Exiting.")
         return
