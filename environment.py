@@ -24,16 +24,17 @@ class CustomEnv(gym.Env):
         self.target = load_and_resize_images(targetImg_path)
         
         self.toile = np.zeros_like(self.target).astype(np.uint8)
-        self.init_loss = asyncio.run(loss(self.target, self.toile, self.semaphore))  # Use asyncio.run to call the coroutine
+        
+        # Since we cannot await in __init__, we setup init_loss later
+        self.init_loss = None
+        self.previous_loss = None
+        
+        print(f"CustomEnv initialized with image: {targetImg_path}")
+
+    async def setup(self):
+        self.init_loss = await loss(self.target, self.toile, self.semaphore)
         self.previous_loss = self.init_loss
-        print(f"{targetImg_path.split('.')} goal loss = ", self.init_loss*0.2)
-        
-        # Define action and observation space
-        self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.target.shape[0], self.target.shape[1], 3), dtype=np.uint8)
-        
-        self.current_step = 0
-        print("CustomEnv initialized.")
+        print(f"Goal loss = {self.init_loss*0.2}")
 
     async def reset(self):
         print("Resetting environment...")

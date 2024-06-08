@@ -14,14 +14,16 @@ import pycuda.driver as cuda
 import asyncio
 
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
+    await env.setup()  # Ensure the environment is properly set up
+
     for episode in range(num_episodes):
-        state = await env.reset()  # Await the reset method
+        state = await env.reset()
         total_reward = 0
         done = False
 
         while not done:
             action = agent.select_action(state)
-            next_state, reward, done, _ = await env.step(action)  # Await the step method
+            next_state, reward, done, _ = await env.step(action)
             agent.store_experience(replay_buffer, state, action, reward, next_state, done)
             agent.train(replay_buffer, batch_size)
             state = next_state
