@@ -27,7 +27,7 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
             agent.train(replay_buffer, batch_size)
             state = next_state
             total_reward += reward
-        wandb.log({"Episode": episode + 1, "Total Reward": total_reward, "Epsilon": agent.epsilon})
+        wandb.log({"Episode": episode + 1, "Loss": env.previous_loss, "Goal_loss": (env.init_loss * 0.2) * 100, "Epsilon": agent.epsilon})
 
 async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
     if not image_paths:

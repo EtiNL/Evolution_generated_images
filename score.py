@@ -148,10 +148,10 @@ async def loss(targetIm, testIm, semaphore=None):
             score_gpu = cuda.mem_alloc(score.nbytes)
             cuda.memcpy_htod_async(score_gpu, score, stream)
 
-            print("Launching CUDA kernel...")
+            # print("Launching CUDA kernel...")
             loss_func(d_memory["px_test"], d_memory["px_target"], score_gpu, np.int32(totalPixels), np.int32(targetIm.shape[1]), block=block, grid=grid, stream=stream)
             stream.synchronize()
-            print("CUDA kernel completed.")
+            # print("CUDA kernel completed.")
 
             cuda.memcpy_dtoh_async(score, score_gpu, stream)
             stream.synchronize()
