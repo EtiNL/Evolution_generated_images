@@ -15,14 +15,14 @@ import asyncio
 import traceback
 
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
-    await env.setup()  # Ensure the environment is properly set up
+    env.setup()  # Ensure the environment is properly set up
     for episode in range(num_episodes):
-        state = await env.reset()
+        state = env.reset()
         total_reward = 0
         done = False
         while not done:
             action = agent.select_action(state)
-            next_state, reward, done, _ = await env.step(action)
+            next_state, reward, done, _ = env.step(action)
             agent.store_experience(replay_buffer, state, action, reward, next_state, done)
             agent.train(replay_buffer, batch_size)
             state = next_state
@@ -41,7 +41,7 @@ async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, bat
         env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
         
         print("Starting training...")
-        await train(env, agent, replay_buffer, num_episodes, batch_size)
+        train(env, agent, replay_buffer, num_episodes, batch_size)
         print("Training completed successfully.")
     
     except FileNotFoundError as fnf_error:
