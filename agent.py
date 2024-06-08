@@ -36,17 +36,30 @@ class Agent:
         experiences = replay_buffer.sample(batch_size)
         states, actions, rewards, next_states, dones = zip(*experiences)
 
-        states = torch.FloatTensor(states).unsqueeze(1)
-        actions = torch.FloatTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards)
-        next_states = torch.FloatTensor(next_states).unsqueeze(1)
-        dones = torch.FloatTensor(dones)
+        # Convert lists to tensors efficiently
+        states = torch.FloatTensor(np.array(states)).unsqueeze(1)
+        actions = torch.FloatTensor(np.array(actions)).unsqueeze(1)
+        rewards = torch.FloatTensor(np.array(rewards))
+        next_states = torch.FloatFloatTensor(np.array(next_states)).unsqueeze(1)
+        dones = torch.FloatTensor(np.array(dones))
+
+        print(f"states shape: {states.shape}")
+        print(f"actions shape: {actions.shape}")
+        print(f"rewards shape: {rewards.shape}")
+        print(f"next_states shape: {next_states.shape}")
+        print(f"dones shape: {dones.shape}")
 
         q_values = self.model(states)
         next_q_values = self.model(next_states)
 
+        print(f"q_values shape: {q_values.shape}")
+        print(f"next_q_values shape: {next_q_values.shape}")
+
         q_target = rewards + (1 - dones) * self.gamma * next_q_values.max(1)[0]
         q_expected = q_values.gather(1, actions.argmax(dim=2).unsqueeze(1))
+
+        print(f"q_target shape: {q_target.shape}")
+        print(f"q_expected shape: {q_expected.shape}")
 
         loss = self.loss_fn(q_expected, q_target.unsqueeze(1))
         self.optimizer.zero_grad()
