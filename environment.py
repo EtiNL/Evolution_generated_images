@@ -5,6 +5,7 @@ from PIL import Image
 from draw_particles import Draw_particules
 from score import loss
 import cv2
+import asyncio
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
     print(f"Loading and resizing image: {img_path}")
@@ -23,7 +24,7 @@ class CustomEnv(gym.Env):
         self.target = load_and_resize_images(targetImg_path)
         
         self.toile = np.zeros_like(self.target).astype(np.uint8)
-        self.init_loss = loss(self.target, self.toile, self.semaphore)
+        self.init_loss = asyncio.run(loss(self.target, self.toile, self.semaphore))  # Use asyncio.run to call the coroutine
         self.previous_loss = self.init_loss
         print(f"{targetImg_path.split('.')} goal loss = ", self.init_loss*0.2)
         
@@ -34,11 +35,11 @@ class CustomEnv(gym.Env):
         self.current_step = 0
         print("CustomEnv initialized.")
 
-    def reset(self):
+    async def reset(self):
         print("Resetting environment...")
         self.current_step = 0
         self.toile = np.zeros_like(self.target).astype(np.uint8)
-        self.previous_loss = loss(self.target, self.toile, self.semaphore)
+        self.previous_loss = await loss(self.target, self.toile, self.semaphore)
         print("Environment reset.")
         return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
 
