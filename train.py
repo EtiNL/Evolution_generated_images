@@ -11,8 +11,9 @@ from replay_buffer import ReplayBuffer
 import wandb
 from get_dataset import get_images
 import pycuda.driver as cuda
+import asyncio
 
-def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
+async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
     for episode in range(num_episodes):
         state = env.reset()
         total_reward = 0
@@ -20,7 +21,7 @@ def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
 
         while not done:
             action = agent.select_action(state)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, _ = await env.step(action)
             agent.store_experience(replay_buffer, state, action, reward, next_state, done)
             agent.train(replay_buffer, batch_size)
             state = next_state
@@ -28,7 +29,7 @@ def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
 
         wandb.log({"Episode": episode + 1, "Total Reward": total_reward, "Epsilon": agent.epsilon})
 
-def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
+async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
     if not image_paths:
         print("No images found in the specified directory.")
         return
@@ -39,12 +40,12 @@ def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_siz
     cuda_context = cuda_device.make_context()
 
     try:
-        semaphore.acquire()
+        await semaphore.acquire()
         try:
             random_image_path = random.choice(image_paths)
             env = CustomEnv(random_image_path, semaphore)
             env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
-            train(env, agent, replay_buffer, num_episodes, batch_size)
+            await train(env, agent, replay_buffer, num_episodes, batch_size)
         finally:
             semaphore.release()
     finally:
@@ -85,15 +86,12 @@ if __name__ == "__main__":
     if not image_paths:
         raise FileNotFoundError(f"No images found in the training folder path {training_folder_path}.")
 
-    semaphore = mp.Semaphore(1)
+    semaphore = asyncio.Semaphore(1)
 
-    processes = []
+    loop = asyncio.get_event_loop()
+    tasks = []
     for agent in agents:
-        p = mp.Process(target=parallel_train, args=(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size, (64, 64), semaphore))
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join()
+        tasks.append(parallel_train(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size, (64, 64), semaphore))
+    loop.run_until_complete(asyncio.gather(*tasks))
 
     torch.save(agents[0].model.state_dict(), 'final_model.pth')

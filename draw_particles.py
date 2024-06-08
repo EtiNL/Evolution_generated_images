@@ -2,6 +2,7 @@ import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 import numpy as np
 from gpu_utils import get_max_threads_per_block
+import asyncio
 
 kernel_draw_circles = """
 __global__ void draw_circles( float *testIm, float *targetIm, int nbr_circles, int check, float *x_coordinates, float *y_coordinates, float *radius, int im_size){
@@ -67,14 +68,14 @@ __global__ void draw_circles( float *testIm, float *targetIm, int nbr_circles, i
 }
 """
 
-def optimize_kernel_config(totalPixels):
+async def optimize_kernel_config(totalPixels):
     BLOCK_SIZE = 1024  # A100 optimal block size
     grid_size = (totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE
     block = (BLOCK_SIZE, 1, 1)
     grid = (grid_size, 1, 1)
     return block, grid
 
-def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
+async def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     data = {
         "px_target": np.array(targetIm).astype(np.float32),
         "px_test": np.array(testIm).astype(np.float32),
@@ -90,19 +91,19 @@ def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     
     return d_memory, stream
 
-def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
+async def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
     cuda.init()
     cuda_device = cuda.Device(0)
     cuda_context = cuda_device.make_context()
 
     try:
-        semaphore.acquire()
+        await semaphore.acquire()
         try:
             mod = SourceModule(kernel_draw_circles)
             circle_func = mod.get_function("draw_circles")
 
-            d_memory, stream = setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
-            block, grid = optimize_kernel_config(int(targetIm.shape[0] * targetIm.shape[1]))
+            d_memory, stream = await setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
+            block, grid = await optimize_kernel_config(int(targetIm.shape[0] * targetIm.shape[1]))
 
             circle_func(
                 d_memory["px_test"], d_memory["px_target"], 

@@ -7,13 +7,16 @@ from score import loss
 import cv2
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
+    print(f"Loading and resizing image: {img_path}")
     img = Image.open(img_path)
     img = img.resize(target_size)
     img_array = np.array(img)
+    print("Image loaded and resized.")
     return img_array
 
 class CustomEnv(gym.Env):
     def __init__(self, targetImg_path, semaphore):
+        print(f"Initializing CustomEnv with image: {targetImg_path}")
         super(CustomEnv, self).__init__()
         
         self.semaphore = semaphore
@@ -29,14 +32,18 @@ class CustomEnv(gym.Env):
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.target.shape[0], self.target.shape[1], 3), dtype=np.uint8)
         
         self.current_step = 0
+        print("CustomEnv initialized.")
 
     def reset(self):
+        print("Resetting environment...")
         self.current_step = 0
         self.toile = np.zeros_like(self.target).astype(np.uint8)
         self.previous_loss = loss(self.target, self.toile, self.semaphore)
+        print("Environment reset.")
         return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
 
-    def step(self, action):
+    async def step(self, action):
+        print(f"Step {self.current_step}, action: {action}")
         self.current_step += 1
         x_pos, y_pos, radius = action
         x_pos = np.clip(x_pos * self.target.shape[1], 0, self.target.shape[1] - 1)
@@ -47,9 +54,9 @@ class CustomEnv(gym.Env):
         y_pos = np.array([y_pos])
         radius = np.array([radius])
 
-        self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
+        self.toile = await Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
         next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
-        current_loss = loss(self.target, self.toile, self.semaphore)
+        current_loss = await loss(self.target, self.toile, self.semaphore)
         reward = self.previous_loss - current_loss
 
         # Provide intermediate rewards for partial progress
@@ -67,7 +74,9 @@ class CustomEnv(gym.Env):
             done = False
             reward -= 100
         if done: reward += 100
+        print(f"Step {self.current_step} completed, reward: {reward}, done: {done}")
         return next_state, reward, done, {}
+    
     def render(self, mode='human'):
         pass
     

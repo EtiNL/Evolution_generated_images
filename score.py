@@ -2,6 +2,7 @@ import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 import numpy as np
 from gpu_utils import get_max_threads_per_block
+import asyncio
 
 kernel_score = """
 __global__ void score(float *testIm, float *targetIm, float *score, int nbr_circles, int check, float *x_coordinates, float *y_coordinates, float *radius, int im_size) {
@@ -64,8 +65,7 @@ __global__ void loss(float *testIm, float *targetIm, float *score, int check, in
 }
 """
 
-def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
-    # Ensure non-empty and valid input arrays
+async def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     center_pos_x = np.array(center_pos_x).astype(np.float32)
     center_pos_y = np.array(center_pos_y).astype(np.float32)
     radius = np.array(radius).astype(np.float32)
@@ -92,18 +92,18 @@ def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     
     return d_memory, stream
 
-def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
+async def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
     cuda.init()
     cuda_device = cuda.Device(0)
     cuda_context = cuda_device.make_context()
 
     try:
-        semaphore.acquire()
+        await semaphore.acquire()
         try:
             mod = SourceModule(kernel_score)
             circle_func = mod.get_function("score")
 
-            d_memory, stream = setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
+            d_memory, stream = await setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
 
             totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
             BLOCK_SIZE = get_max_threads_per_block()
@@ -114,7 +114,6 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, semap
             score_gpu = cuda.mem_alloc(score.nbytes)
             cuda.memcpy_htod_async(score_gpu, score, stream)
 
-            # Convert Python integers to NumPy integers
             nbr_circles = np.int32(len(radius))
             totalPixels_np = np.int32(totalPixels)
             im_size = np.int32(targetIm.shape[1])
@@ -132,18 +131,18 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, semap
         cuda_context.pop()
     return np.sum(score, axis=1) / totalPixels
 
-def loss(targetIm, testIm, semaphore=None):
+async def loss(targetIm, testIm, semaphore=None):
     cuda.init()
     cuda_device = cuda.Device(0)
     cuda_context = cuda_device.make_context()
 
     try:
-        semaphore.acquire()
+        await semaphore.acquire()
         try:
             mod = SourceModule(kernel_loss)
             loss_func = mod.get_function("loss")
 
-            d_memory, stream = setup_cuda_memory(targetIm, testIm, [], [], [])
+            d_memory, stream = await setup_cuda_memory(targetIm, testIm, [], [], [])
             totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
             BLOCK_SIZE = get_max_threads_per_block()
             grid = ((totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE, 1, 1)
