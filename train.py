@@ -12,6 +12,7 @@ import wandb
 from get_dataset import get_images
 import pycuda.driver as cuda
 import asyncio
+import traceback
 
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
     await env.setup()  # Ensure the environment is properly set up
@@ -32,14 +33,26 @@ async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, bat
     if not image_paths:
         print("No images found in the specified directory.")
         return
+    
     try:
         random_image_path = random.choice(image_paths)
+        print(f"Selected image: {random_image_path}")
         env = CustomEnv(random_image_path, semaphore)
         env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
+        
+        print("Starting training...")
         await train(env, agent, replay_buffer, num_episodes, batch_size)
+        print("Training completed successfully.")
     
-    except:
-        print('parrallel_train bug')
+    except FileNotFoundError as fnf_error:
+        print(f"FileNotFoundError: {fnf_error}")
+    except OSError as os_error:
+        print(f"OSError: {os_error}")
+    except RuntimeError as runtime_error:
+        print(f"RuntimeError: {runtime_error}")
+    except Exception as e:
+        print(f"Exception: {e}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     mp.set_start_method('spawn')
