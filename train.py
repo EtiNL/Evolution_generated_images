@@ -1,4 +1,3 @@
-# train.py
 import numpy as np
 import os
 import random
@@ -12,11 +11,6 @@ from replay_buffer import ReplayBuffer
 import wandb
 from get_dataset import get_images
 import pycuda.driver as cuda
-
-# Initialize CUDA context
-cuda.init()
-cuda_device = cuda.Device(0)
-cuda_context = cuda_device.make_context()
 
 def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
     for episode in range(num_episodes):
@@ -34,21 +28,27 @@ def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
 
         wandb.log({"Episode": episode + 1, "Total Reward": total_reward, "Epsilon": agent.epsilon})
 
-def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64)):
+def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
     if not image_paths:
         print("No images found in the specified directory.")
         return
     
-    # Use the global CUDA context
-    global cuda_context
-    cuda_context.push()
-    
-    random_image_path = random.choice(image_paths)
-    env = CustomEnv(random_image_path)
-    env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
-    train(env, agent, replay_buffer, num_episodes, batch_size)
-    
-    cuda_context.pop()
+    # Initialize CUDA context in each process
+    cuda.init()
+    cuda_device = cuda.Device(0)
+    cuda_context = cuda_device.make_context()
+
+    try:
+        semaphore.acquire()
+        try:
+            random_image_path = random.choice(image_paths)
+            env = CustomEnv(random_image_path)
+            env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
+            train(env, agent, replay_buffer, num_episodes, batch_size)
+        finally:
+            semaphore.release()
+    finally:
+        cuda_context.pop()
 
 if __name__ == "__main__":
     training_folder_path = '/content/Evolution_generated_images/trainning_images'
@@ -84,9 +84,11 @@ if __name__ == "__main__":
     if not image_paths:
         raise FileNotFoundError(f"No images found in the training folder path {training_folder_path}.")
 
+    semaphore = mp.Semaphore(1)
+
     processes = []
     for agent in agents:
-        p = mp.Process(target=parallel_train, args=(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size))
+        p = mp.Process(target=parallel_train, args=(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size, semaphore))
         p.start()
         processes.append(p)
 

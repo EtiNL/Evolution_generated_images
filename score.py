@@ -1,6 +1,5 @@
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
-import pycuda.autoinit
 import numpy as np
 from gpu_utils import get_max_threads_per_block
 
@@ -54,6 +53,17 @@ __global__ void score(float *testIm, float *targetIm, float *score, int nbr_circ
 }
 """
 
+kernel_loss = """
+__global__ void loss(float *testIm, float *targetIm, float *score, int check, int im_size) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    if (idx < check) {
+        score[idx] = (abs(testIm[idx * 3] - targetIm[idx * 3]) +
+                      abs(testIm[idx * 3 + 1] - targetIm[idx * 3 + 1]) +
+                      abs(testIm[idx * 3 + 2] - targetIm[idx * 3 + 2])) / 3.0;
+    }
+}
+"""
+
 def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     # Ensure non-empty and valid input arrays
     center_pos_x = np.array(center_pos_x).astype(np.float32)
@@ -82,69 +92,73 @@ def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     
     return d_memory, stream
 
-def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
-    global cuda_context
-    cuda_context.push()
-    mod = SourceModule(kernel_score)
-    circle_func = mod.get_function("score")
+def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
+    cuda.init()
+    cuda_device = cuda.Device(0)
+    cuda_context = cuda_device.make_context()
 
-    d_memory, stream = setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
+    try:
+        semaphore.acquire()
+        try:
+            mod = SourceModule(kernel_score)
+            circle_func = mod.get_function("score")
 
-    totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
-    BLOCK_SIZE = get_max_threads_per_block()
-    grid = ((totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE, 1, 1)
-    block = (BLOCK_SIZE, 1, 1)
+            d_memory, stream = setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
 
-    score = np.zeros((len(radius), totalPixels)).astype(np.float32)
-    score_gpu = cuda.mem_alloc(score.nbytes)
-    cuda.memcpy_htod_async(score_gpu, score, stream)
+            totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
+            BLOCK_SIZE = get_max_threads_per_block()
+            grid = ((totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE, 1, 1)
+            block = (BLOCK_SIZE, 1, 1)
 
-    # Convert Python integers to NumPy integers
-    nbr_circles = np.int32(len(radius))
-    totalPixels_np = np.int32(totalPixels)
-    im_size = np.int32(targetIm.shape[1])
+            score = np.zeros((len(radius), totalPixels)).astype(np.float32)
+            score_gpu = cuda.mem_alloc(score.nbytes)
+            cuda.memcpy_htod_async(score_gpu, score, stream)
 
-    circle_func(d_memory["px_test"], d_memory["px_target"], score_gpu, 
-                nbr_circles, totalPixels_np, 
-                d_memory["x_coordinates"], d_memory["y_coordinates"], d_memory["radius"], 
-                im_size, block=block, grid=grid, stream=stream)
-    stream.synchronize()
+            # Convert Python integers to NumPy integers
+            nbr_circles = np.int32(len(radius))
+            totalPixels_np = np.int32(totalPixels)
+            im_size = np.int32(targetIm.shape[1])
 
-    cuda.memcpy_dtoh(score, score_gpu)
-    cuda_context.pop()
+            circle_func(d_memory["px_test"], d_memory["px_target"], score_gpu, 
+                        nbr_circles, totalPixels_np, 
+                        d_memory["x_coordinates"], d_memory["y_coordinates"], d_memory["radius"], 
+                        im_size, block=block, grid=grid, stream=stream)
+            stream.synchronize()
+
+            cuda.memcpy_dtoh(score, score_gpu)
+        finally:
+            semaphore.release()
+    finally:
+        cuda_context.pop()
     return np.sum(score, axis=1) / totalPixels
 
+def loss(targetIm, testIm, semaphore=None):
+    cuda.init()
+    cuda_device = cuda.Device(0)
+    cuda_context = cuda_device.make_context()
 
-kernel_loss = """
-__global__ void loss(float *testIm, float *targetIm, float *score, int check, int im_size) {
-    int idx = threadIdx.x + blockDim.x * blockIdx.x;
-    if (idx < check) {
-        score[idx] = (abs(testIm[idx * 3] - targetIm[idx * 3]) +
-                      abs(testIm[idx * 3 + 1] - targetIm[idx * 3 + 1]) +
-                      abs(testIm[idx * 3 + 2] - targetIm[idx * 3 + 2])) / 3.0;
-    }
-}
-"""
+    try:
+        semaphore.acquire()
+        try:
+            mod = SourceModule(kernel_loss)
+            loss_func = mod.get_function("loss")
 
-def loss(targetIm, testIm):
-    global cuda_context
-    cuda_context.push()
-    mod = SourceModule(kernel_loss)
-    loss_func = mod.get_function("loss")
+            d_memory, stream = setup_cuda_memory(targetIm, testIm, [], [], [])
+            totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
+            BLOCK_SIZE = get_max_threads_per_block()
+            grid = ((totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE, 1, 1)
+            block = (BLOCK_SIZE, 1, 1)
 
-    d_memory, stream = setup_cuda_memory(targetIm, testIm, [], [], [])
-    totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
-    BLOCK_SIZE = get_max_threads_per_block()
-    grid = ((totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE, 1, 1)
-    block = (BLOCK_SIZE, 1, 1)
+            score = np.zeros(totalPixels).astype(np.float32)
+            score_gpu = cuda.mem_alloc(score.nbytes)
+            cuda.memcpy_htod_async(score_gpu, score, stream)
 
-    score = np.zeros(totalPixels).astype(np.float32)
-    score_gpu = cuda.mem_alloc(score.nbytes)
-    cuda.memcpy_htod_async(score_gpu, score, stream)
+            loss_func(d_memory["px_test"], d_memory["px_target"], score_gpu, np.int32(totalPixels), np.int32(targetIm.shape[1]), block=block, grid=grid, stream=stream)
+            stream.synchronize()
 
-    loss_func(d_memory["px_test"], d_memory["px_target"], score_gpu, np.int32(totalPixels), np.int32(targetIm.shape[1]), block=block, grid=grid, stream=stream)
-    stream.synchronize()
-
-    cuda.memcpy_dtoh(score, score_gpu)
-    cuda_context.pop()
+            cuda.memcpy_dtoh(score, score_gpu)
+        finally:
+            semaphore.release()
+    finally:
+        cuda_context.pop()
     return np.sum(score) / totalPixels

@@ -1,6 +1,5 @@
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
-import pycuda.autoinit
 import numpy as np
 from gpu_utils import get_max_threads_per_block
 
@@ -91,28 +90,35 @@ def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     
     return d_memory, stream
 
-def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius):
-    global cuda_context
-    cuda_context.push()
-    
-    mod = SourceModule(kernel_draw_circles)
-    circle_func = mod.get_function("draw_circles")
+def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
+    cuda.init()
+    cuda_device = cuda.Device(0)
+    cuda_context = cuda_device.make_context()
 
-    d_memory, stream = setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
-    block, grid = optimize_kernel_config(int(targetIm.shape[0] * targetIm.shape[1]))
+    try:
+        semaphore.acquire()
+        try:
+            mod = SourceModule(kernel_draw_circles)
+            circle_func = mod.get_function("draw_circles")
 
-    circle_func(
-        d_memory["px_test"], d_memory["px_target"], 
-        np.int32(len(radius)), np.int32(int(targetIm.shape[0] * targetIm.shape[1])), 
-        d_memory["x_coordinates"], d_memory["y_coordinates"], d_memory["radius"], 
-        np.int32(targetIm.shape[1]), 
-        block=block, grid=grid, stream=stream
-    )
-    stream.synchronize()
+            d_memory, stream = setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius)
+            block, grid = optimize_kernel_config(int(targetIm.shape[0] * targetIm.shape[1]))
 
-    res = np.empty_like(targetIm, dtype=np.float32)
-    cuda.memcpy_dtoh_async(res, d_memory["px_test"], stream)
-    stream.synchronize()
-    
-    cuda_context.pop()
+            circle_func(
+                d_memory["px_test"], d_memory["px_target"], 
+                np.int32(len(radius)), np.int32(int(targetIm.shape[0] * targetIm.shape[1])), 
+                d_memory["x_coordinates"], d_memory["y_coordinates"], d_memory["radius"], 
+                np.int32(targetIm.shape[1]), 
+                block=block, grid=grid, stream=stream
+            )
+            stream.synchronize()
+
+            res = np.empty_like(targetIm, dtype=np.float32)
+            cuda.memcpy_dtoh_async(res, d_memory["px_test"], stream)
+            stream.synchronize()
+        finally:
+            semaphore.release()
+    finally:
+        cuda_context.pop()
+
     return np.uint8(res)
