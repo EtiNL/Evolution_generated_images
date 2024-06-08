@@ -11,6 +11,12 @@ from agent import Agent
 from replay_buffer import ReplayBuffer
 import wandb
 from get_dataset import get_images
+import pycuda.driver as cuda
+
+# Initialize CUDA context
+cuda.init()
+cuda_device = cuda.Device(0)
+cuda_context = cuda_device.make_context()
 
 def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
     for episode in range(num_episodes):
@@ -33,10 +39,16 @@ def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_siz
         print("No images found in the specified directory.")
         return
     
+    # Use the global CUDA context
+    global cuda_context
+    cuda_context.push()
+    
     random_image_path = random.choice(image_paths)
     env = CustomEnv(random_image_path)
     env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
     train(env, agent, replay_buffer, num_episodes, batch_size)
+    
+    cuda_context.pop()
 
 if __name__ == "__main__":
     training_folder_path = '/content/Evolution_generated_images/trainning_images'

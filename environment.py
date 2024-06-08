@@ -5,7 +5,6 @@ from PIL import Image
 from draw_particles import Draw_particules
 from score import loss
 import cv2
-import os
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
     img = Image.open(img_path)
@@ -22,7 +21,7 @@ class CustomEnv(gym.Env):
         self.toile = np.zeros_like(self.target).astype(np.uint8)
         self.init_loss = loss(self.target, self.toile)
         self.previous_loss = self.init_loss
-        print(f"{targetImg_path.split('.')} goal loss = ", self.init_loss*0.2)
+        print(f"{targetImg_path.split('.')[0]} goal loss = ", self.init_loss * 0.2)
         
         # Define action and observation space
         self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
@@ -62,12 +61,13 @@ class CustomEnv(gym.Env):
 
         self.previous_loss = current_loss
         if self.current_step < 5000:
-            done = current_loss/self.init_loss <= 0.2
+            done = current_loss / self.init_loss <= 0.2
         else:
             done = False
-            reward-=100
-        if done: reward+=100
+            reward -= 100
+        if done: reward += 100
         return next_state, reward, done, {}
+
     def render(self, mode='human'):
         pass
     

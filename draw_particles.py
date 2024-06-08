@@ -92,6 +92,9 @@ def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     return d_memory, stream
 
 def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius):
+    global cuda_context
+    cuda_context.push()
+    
     mod = SourceModule(kernel_draw_circles)
     circle_func = mod.get_function("draw_circles")
 
@@ -110,4 +113,6 @@ def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius):
     res = np.empty_like(targetIm, dtype=np.float32)
     cuda.memcpy_dtoh_async(res, d_memory["px_test"], stream)
     stream.synchronize()
+    
+    cuda_context.pop()
     return np.uint8(res)

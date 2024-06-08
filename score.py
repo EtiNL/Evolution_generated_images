@@ -83,6 +83,8 @@ def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
     return d_memory, stream
 
 def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
+    global cuda_context
+    cuda_context.push()
     mod = SourceModule(kernel_score)
     circle_func = mod.get_function("score")
 
@@ -109,6 +111,7 @@ def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius):
     stream.synchronize()
 
     cuda.memcpy_dtoh(score, score_gpu)
+    cuda_context.pop()
     return np.sum(score, axis=1) / totalPixels
 
 
@@ -124,6 +127,8 @@ __global__ void loss(float *testIm, float *targetIm, float *score, int check, in
 """
 
 def loss(targetIm, testIm):
+    global cuda_context
+    cuda_context.push()
     mod = SourceModule(kernel_loss)
     loss_func = mod.get_function("loss")
 
@@ -141,4 +146,5 @@ def loss(targetIm, testIm):
     stream.synchronize()
 
     cuda.memcpy_dtoh(score, score_gpu)
+    cuda_context.pop()
     return np.sum(score) / totalPixels
