@@ -41,7 +41,7 @@ async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, bat
         env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
         
         print("Starting training...")
-        train(env, agent, replay_buffer, num_episodes, batch_size)
+        await train(env, agent, replay_buffer, num_episodes, batch_size)
         print("Training completed successfully.")
     
     except FileNotFoundError as fnf_error:
