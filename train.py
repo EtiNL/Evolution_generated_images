@@ -39,7 +39,7 @@ def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_siz
     train(env, agent, replay_buffer, num_episodes, batch_size)
 
 if __name__ == "__main__":
-    training_folder_path = get_images()
+    training_folder_path = 'trainning_images'
     parser = argparse.ArgumentParser(
         prog='Train DQN Agent on Multiple Images',
         description='Train multiple DQN agents on random images from a folder using multiprocessing.',
