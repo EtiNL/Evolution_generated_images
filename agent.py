@@ -40,7 +40,7 @@ class Agent:
         states = torch.FloatTensor(np.array(states)).unsqueeze(1)
         actions = torch.FloatTensor(np.array(actions)).unsqueeze(1)
         rewards = torch.FloatTensor(np.array(rewards))
-        next_states = torch.FloatFloatTensor(np.array(next_states)).unsqueeze(1)
+        next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)
         dones = torch.FloatTensor(np.array(dones))
 
         print(f"states shape: {states.shape}")
