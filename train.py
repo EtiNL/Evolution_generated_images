@@ -12,11 +12,13 @@ import wandb
 from get_dataset import get_images
 import pycuda.driver as cuda
 import asyncio
+import time
 
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
     await env.setup()  # Ensure the environment is properly set up
 
     for episode in range(num_episodes):
+        print(f"Starting episode {episode + 1}")
         state = await env.reset()
         total_reward = 0
         done = False
@@ -30,6 +32,7 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
             total_reward += reward
 
         wandb.log({"Episode": episode + 1, "Total Reward": total_reward, "Epsilon": agent.epsilon})
+        print(f"Episode {episode + 1} finished with total reward: {total_reward}")
 
 async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
     if not image_paths:
@@ -45,9 +48,12 @@ async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, bat
         await semaphore.acquire()
         try:
             random_image_path = random.choice(image_paths)
+            print(f"Selected image: {random_image_path}")
             env = CustomEnv(random_image_path, semaphore)
             env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
+            print(f"Starting training on image: {random_image_path}")
             await train(env, agent, replay_buffer, num_episodes, batch_size)
+            print(f"Finished training on image: {random_image_path}")
         finally:
             semaphore.release()
     finally:
