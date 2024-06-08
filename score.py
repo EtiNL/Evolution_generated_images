@@ -65,32 +65,23 @@ __global__ void loss(float *testIm, float *targetIm, float *score, int check, in
 }
 """
 
-async def setup_cuda_memory(targetIm, testIm, center_pos_x, center_pos_y, radius):
-    center_pos_x = np.array(center_pos_x).astype(np.float32)
-    center_pos_y = np.array(center_pos_y).astype(np.float32)
-    radius = np.array(radius).astype(np.float32)
-    
-    if center_pos_x.size == 0:
-        center_pos_x = np.zeros(1, dtype=np.float32)
-    if center_pos_y.size == 0:
-        center_pos_y = np.zeros(1, dtype=np.float32)
-    if radius.size == 0:
-        radius = np.zeros(1, dtype=np.float32)
+async def setup_cuda_memory(targetIm, testIm):
+    try:
+        data = {
+            "px_target": np.array(targetIm).astype(np.float32),
+            "px_test": np.array(testIm).astype(np.float32),
+        }
 
-    data = {
-        "px_target": np.array(targetIm).astype(np.float32),
-        "px_test": np.array(testIm).astype(np.float32),
-        "x_coordinates": center_pos_x,
-        "y_coordinates": center_pos_y,
-        "radius": radius
-    }
-
-    d_memory = {k: cuda.mem_alloc(v.nbytes) for k, v in data.items()}
-    stream = cuda.Stream()
-    for k, v in data.items():
-        cuda.memcpy_htod_async(d_memory[k], v, stream)
-    
-    return d_memory, stream
+        d_memory = {k: cuda.mem_alloc(v.nbytes) for k, v in data.items()}
+        stream = cuda.Stream()
+        for k, v in data.items():
+            cuda.memcpy_htod_async(d_memory[k], v, stream)
+        
+        stream.synchronize()
+        return d_memory, stream
+    except Exception as e:
+        print(f"Exception in setup_cuda_memory: {e}")
+        return None, None
 
 async def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius, semaphore=None):
     cuda.init()
@@ -132,17 +123,22 @@ async def score_generation(targetIm, testIm, center_pos_x, center_pos_y, radius,
     return np.sum(score, axis=1) / totalPixels
 
 async def loss(targetIm, testIm, semaphore=None):
-    cuda.init()
-    cuda_device = cuda.Device(0)
-    cuda_context = cuda_device.make_context()
-
+    # print("Starting loss calculation...")
     try:
+        # print("Acquire semaphore...")
         await semaphore.acquire()
+        cuda.init()
+        cuda_device = cuda.Device(0)
+        cuda_context = cuda_device.make_context()
+        # print("Acquired semaphore")
         try:
             mod = SourceModule(kernel_loss)
             loss_func = mod.get_function("loss")
 
-            d_memory, stream = await setup_cuda_memory(targetIm, testIm, [], [], [])
+            d_memory, stream = await setup_cuda_memory(targetIm, testIm)
+            if d_memory is None:
+                raise RuntimeError("Failed to setup CUDA memory.")
+
             totalPixels = int(targetIm.shape[0] * targetIm.shape[1])
             BLOCK_SIZE = get_max_threads_per_block()
             grid = ((totalPixels + BLOCK_SIZE - 1) // BLOCK_SIZE, 1, 1)
@@ -152,12 +148,24 @@ async def loss(targetIm, testIm, semaphore=None):
             score_gpu = cuda.mem_alloc(score.nbytes)
             cuda.memcpy_htod_async(score_gpu, score, stream)
 
+            # print("Launching CUDA kernel...")
             loss_func(d_memory["px_test"], d_memory["px_target"], score_gpu, np.int32(totalPixels), np.int32(targetIm.shape[1]), block=block, grid=grid, stream=stream)
             stream.synchronize()
+            # print("CUDA kernel completed.")
 
-            cuda.memcpy_dtoh(score, score_gpu)
-        finally:
-            semaphore.release()
+            cuda.memcpy_dtoh_async(score, score_gpu, stream)
+            stream.synchronize()
+
+            total_loss = np.sum(score) / totalPixels
+            # print(f"Loss calculation completed. Total loss: {total_loss}")
+            return total_loss
+        except Exception as e:
+            print(f"Exception during loss calculation: {e}")
+        
+    except Exception as e:
+        print(f"Exception in loss function: {e}")
     finally:
         cuda_context.pop()
-    return np.sum(score) / totalPixels
+        # print("CUDA context popped after loss calculation.")
+        semaphore.release()
+        # print("Semaphore released after loss calculation.")

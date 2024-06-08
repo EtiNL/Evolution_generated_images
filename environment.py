@@ -6,9 +6,12 @@ from draw_particles import Draw_particules
 from score import loss
 import cv2
 import asyncio
+import os
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
     print(f"Loading and resizing image: {img_path}")
+    if not os.path.exists(img_path):
+        raise FileNotFoundError(f"The image path {img_path} does not exist.")
     img = Image.open(img_path)
     img = img.resize(target_size)
     img_array = np.array(img)
@@ -19,33 +22,38 @@ class CustomEnv(gym.Env):
     def __init__(self, targetImg_path, semaphore):
         print(f"Initializing CustomEnv with image: {targetImg_path}")
         super(CustomEnv, self).__init__()
-        
+
         self.semaphore = semaphore
-        self.target = load_and_resize_images(targetImg_path)
-        
-        self.toile = np.zeros_like(self.target).astype(np.uint8)
-        
-        # Since we cannot await in __init__, we setup init_loss later
-        self.init_loss = None
-        self.previous_loss = None
-        
-        print(f"CustomEnv initialized with image: {targetImg_path}")
+        self.target_path = targetImg_path
+
+        # Gym action and observation spaces
+        self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200, 3), dtype=np.uint8)
+
+        print("CustomEnv initialization completed.")
 
     async def setup(self):
-        self.init_loss = await loss(self.target, self.toile, self.semaphore)
-        self.previous_loss = self.init_loss
-        print(f"Goal loss = {self.init_loss*0.2}")
+        try:
+            self.target = load_and_resize_images(self.target_path)
+            self.toile = np.zeros_like(self.target).astype(np.uint8)
+            self.init_loss = await loss(self.target, self.toile, self.semaphore)
+            self.previous_loss = self.init_loss
+            print(f"Goal loss = {self.init_loss * 0.2}")
+        except Exception as e:
+            print(f"Exception during setup: {e}")
 
     async def reset(self):
         print("Resetting environment...")
-        self.current_step = 0
-        self.toile = np.zeros_like(self.target).astype(np.uint8)
-        self.previous_loss = await loss(self.target, self.toile, self.semaphore)
-        print("Environment reset.")
-        return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
+        try:
+            self.current_step = 0
+            self.toile = np.zeros_like(self.target).astype(np.uint8)
+            self.previous_loss = await loss(self.target, self.toile, self.semaphore)
+            return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
+        except Exception as e:
+            print(f"Exception during reset: {e}")
 
     async def step(self, action):
-        print(f"Step {self.current_step}, action: {action}")
+        # print(f"Step {self.current_step}, action: {action}")
         self.current_step += 1
         x_pos, y_pos, radius = action
         x_pos = np.clip(x_pos * self.target.shape[1], 0, self.target.shape[1] - 1)
@@ -56,31 +64,45 @@ class CustomEnv(gym.Env):
         y_pos = np.array([y_pos])
         radius = np.array([radius])
 
-        self.toile = await Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
-        next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
-        current_loss = await loss(self.target, self.toile, self.semaphore)
-        reward = self.previous_loss - current_loss
+        try:
+            self.toile = await Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
+            next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
+            current_loss = await loss(self.target, self.toile, self.semaphore)
+            reward = self.previous_loss - current_loss
 
-        # Provide intermediate rewards for partial progress
-        if current_loss < self.previous_loss:
-            reward += 5.0  # Reward for making progress
+            if current_loss < self.previous_loss:
+                reward += 5.0
 
-        # Penalize stagnation
-        if current_loss == self.previous_loss:
-            reward -= 0.1  # Small penalty for no progress
+            if current_loss == self.previous_loss:
+                reward -= 0.1
 
-        self.previous_loss = current_loss
-        if self.current_step < 5000:
-            done = current_loss/self.init_loss <= 0.2
-        else:
-            done = False
-            reward -= 100
-        if done: reward += 100
-        print(f"Step {self.current_step} completed, reward: {reward}, done: {done}")
-        return next_state, reward, done, {}
-    
+            self.previous_loss = current_loss
+            done = self.current_step >= 5000 or current_loss / self.init_loss <= 0.2
+            if done: reward += 100
+            return next_state, reward, done, {}
+        except Exception as e:
+            print(f"Exception during step: {e}")
+
     def render(self, mode='human'):
         pass
-    
+
     def close(self):
         pass
+
+async def main():
+    semaphore = asyncio.Semaphore(1)
+    image_path = 'trainning_images/c_sascha_fonseca_wildlife_photographer_of_the_year-taille1200_63877da71854f.jpg'
+    env = CustomEnv(image_path, semaphore)
+    await env.setup()
+    if not hasattr(env, 'target'):
+        print(f"Image at {image_path} not found. Exiting.")
+        return
+    state = await env.reset()
+    for _ in range(10):
+        action = np.random.rand(3)
+        state, reward, done, _ = await env.step(action)
+        if done:
+            break
+
+if __name__ == "__main__":
+    asyncio.run(main())

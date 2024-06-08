@@ -117,9 +117,11 @@ async def Draw_particules(targetIm, testIm, center_pos_x, center_pos_y, radius, 
             res = np.empty_like(targetIm, dtype=np.float32)
             cuda.memcpy_dtoh_async(res, d_memory["px_test"], stream)
             stream.synchronize()
+        except Exception as e:
+            print(f"Exception in draw_particles: {e}")
         finally:
+            cuda_context.pop()
             semaphore.release()
-    finally:
-        cuda_context.pop()
-
+    except Exception as e:
+        print(f"Exception in draw_particles: {e}")
     return np.uint8(res)
