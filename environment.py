@@ -41,18 +41,10 @@ class CustomEnv(gym.Env):
             # print('finished loss computation')
             self.previous_loss = self.init_loss
             print(f"{self.target_path} Goal loss = {self.init_loss * 0.2}")
-        except Exception as e:
-            print(f"Exception during setup: {e}")
-
-    async def reset(self):
-        print("Resetting environment...")
-        try:
             self.current_step = 0
-            self.toile = np.zeros_like(self.target).astype(np.uint8)
-            self.previous_loss = await loss(self.target, self.toile, self.semaphore)
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         except Exception as e:
-            print(f"Exception during reset: {e}")
+            print(f"Exception during setup: {e}")
 
     async def step(self, action):
         # print(f"Step {self.current_step}, action: {action}")
