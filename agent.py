@@ -19,34 +19,39 @@ class Agent:
 
     def select_action(self, state):
         if random.random() < self.epsilon:
-            # Random action (exploration)
             return np.random.rand(self.action_dim)
         else:
-            # Best known action (exploitation)
             state = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
             with torch.no_grad():
                 action = self.model(state).numpy().flatten()
             return action
 
-    def train(self, state, action, reward, next_state, done):
-        state = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0)
-        next_state = torch.FloatTensor(next_state).unsqueeze(0).unsqueeze(0)
-        action = torch.FloatTensor(action).unsqueeze(0)
-        reward = torch.FloatTensor([reward])
-        done = torch.tensor([done], dtype=torch.float32)
+    def store_experience(self, replay_buffer, state, action, reward, next_state, done):
+        replay_buffer.add((state, action, reward, next_state, done))
 
-        q_values = self.model(state)
-        next_q_values = self.model(next_state)
+    def train(self, replay_buffer, batch_size):
+        if len(replay_buffer) < batch_size:
+            return
 
-        # Adjust q_target based on whether the next state is terminal
-        q_target = reward + (1 - done) * self.gamma * next_q_values.max(1)[0]
-        q_expected = q_values.gather(1, action.argmax().unsqueeze(0).unsqueeze(1))
+        experiences = replay_buffer.sample(batch_size)
+        states, actions, rewards, next_states, dones = zip(*experiences)
+
+        states = torch.FloatTensor(states).unsqueeze(1)
+        actions = torch.FloatTensor(actions).unsqueeze(1)
+        rewards = torch.FloatTensor(rewards)
+        next_states = torch.FloatTensor(next_states).unsqueeze(1)
+        dones = torch.FloatTensor(dones)
+
+        q_values = self.model(states)
+        next_q_values = self.model(next_states)
+
+        q_target = rewards + (1 - dones) * self.gamma * next_q_values.max(1)[0]
+        q_expected = q_values.gather(1, actions.argmax(dim=2).unsqueeze(1))
 
         loss = self.loss_fn(q_expected, q_target.unsqueeze(1))
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        # Decay epsilon
-        if done:
+        if random.random() < 0.01:
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)

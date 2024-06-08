@@ -23,7 +23,7 @@ from draw_particles import Draw_particules
 
 class Video_particle_manager:
 
-    def __init__(self, filename, fps, targetImg_path, video_duration, particles):
+    def __init__(self, filename, fps, targetImg_path, video_duration, particles: np.array):
         """
         Initialize the Video_particle_manager with the given parameters.
         
@@ -224,20 +224,70 @@ def main(target_Img_path, nbr_gen, particles_per_gen):
     Video_particle_manager(path_generated_particles,24,target_Img_path,20,particles).video_generation()
     execution_time = time.time() - start
     print(execution_time//(60*60),'h ', execution_time//60-(execution_time//(60*60))*60,'min ', round(execution_time%60))
+    
+def main_intermediary(target_Img_path, saved_particles_path, nbr_gen, particles_per_gen):
+    with open(saved_particles_path, 'rb') as f:
+        particles = list(np.load(f))
+    particles_copy =  np.array(particles.copy())
+    targetImg = np.array(Image.open(target_Img_path))
+    genImg = np.zeros_like(targetImg)
+    print(nbr_gen > len(particles))
+    if nbr_gen > len(particles):
+        genImg = Draw_particules(targetImg, genImg, particles_copy[:,0], particles_copy[:,1], particles_copy[:,2])
+
+        ds_coef = 16
+
+        loss_val = loss(targetImg, genImg)
+        radius_mean = []
+        for i in tqdm(range(nbr_gen - len(particles))):
+            particle_found = False
+
+            while particle_found == False:
+                gen = Particles(particles_per_gen, 1, targetImg, genImg, ds_coef)
+                # cv2.imshow(f"Target", cv2.cvtColor(targetImg, cv2.COLOR_RGB2BGR))
+                # if intermediary_show: cv2.imshow(f"gen{i}_init", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
+                gen.keep_n_best(n=2)
+                # if intermediary_show: cv2.imshow(f"gen{i}_keep", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
+                gen.generate_noise(0.1)
+                # if intermediary_show: cv2.imshow(f"gen{i}_noise", cv2.cvtColor(gen.draw_particules(np.zeros_like(targetIm), targetIm), cv2.COLOR_RGB2BGR))
+                gen.keep_n_best()
+                radius_mean, loss_val, genImg, particle_found = gen.draw_particules(radius_mean, loss_val)
+                # print(loss_gen, loss_val)
+                # print(' ')
+                if particle_found:
+                    particles.append([gen.scale(gen.center_pos_x[0]), gen.scale(gen.center_pos_y[0]), gen.scale(gen.radius[0])])
+                    radius_mean.append(gen.radius[0])
+                if len(radius_mean) >= 10:
+                    radius_mean.pop(0)
+                # cv2.imshow(f"gen{i}", cv2.cvtColor(genImg, cv2.COLOR_RGB2BGR))
+
+            if np.mean(np.array(radius_mean)) < 1.2:
+                ds_coef = int(ds_coef // 2)
+                print(f'Gen {i}, ds_coef = {ds_coef}')
+                if ds_coef < 2 and np.mean(np.array(radius_mean)) < 2:
+                    break
+
+        # cv2.waitKey(0)
+
+        with open(f'{target_Img_path}_{len(particles)}_particles.npy', 'wb') as f:
+            np.save(f, np.array(particles))
+
+        print(f'Successfully created and saved {len(particles)} particles')
+
+    Video_particle_manager(f'{target_Img_path.split(".")[0]}_{len(particles)}_particles', 24, target_Img_path, 20, np.array(particles)).video_generation()
+
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(
-                    prog='Generate video',
-                    description='',
-                    epilog='')
+    # parser = argparse.ArgumentParser(
+    #                 prog='Generate video',
+    #                 description='',
+    #                 epilog='')
     
-    parser.add_argument('filename') 
-    parser.add_argument('nbr_gen')
-    parser.add_argument('particles_per_gen')
-    args = parser.parse_args()
-    print(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
-    main(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
-    # with open("La_force_des_vagues.JPG_200_particles.npy", 'rb') as f:
-    #     particles = np.load(f)
-    # Video_particle_manager("La_force_des_vagues_particles",24,"La_force_des_vagues.JPG",20,particles).video_generation()
+    # parser.add_argument('filename') 
+    # parser.add_argument('nbr_gen')
+    # parser.add_argument('particles_per_gen')
+    # args = parser.parse_args()
+    # print(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
+    # main(args.filename, int(args.nbr_gen), int(args.particles_per_gen))
+    main_intermediary("La_force_des_vagues.JPG", "La_force_des_vagues.JPG_5000_particles.npy", 5000, 20)
 
