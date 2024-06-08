@@ -42,7 +42,7 @@ def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_siz
         semaphore.acquire()
         try:
             random_image_path = random.choice(image_paths)
-            env = CustomEnv(random_image_path)
+            env = CustomEnv(random_image_path, semaphore)
             env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
             train(env, agent, replay_buffer, num_episodes, batch_size)
         finally:
@@ -51,6 +51,7 @@ def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_siz
         cuda_context.pop()
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn')  # Ensure 'spawn' method is used for multiprocessing
     training_folder_path = '/content/Evolution_generated_images/trainning_images'
     parser = argparse.ArgumentParser(
         prog='Train DQN Agent on Multiple Images',
