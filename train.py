@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     processes = []
     for agent in agents:
-        p = mp.Process(target=parallel_train, args=(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size, semaphore))
+        p = mp.Process(target=parallel_train, args=(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size, (64, 64), semaphore))
         p.start()
         processes.append(p)
 
