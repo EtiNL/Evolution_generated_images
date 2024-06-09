@@ -32,6 +32,6 @@ class DQN_CNN(nn.Module):
         # print("After flattening: ", x.shape)
         x = F.relu(self.fc1(x))
         # print("After fc1: ", x.shape)
-        x = self.fc2(x)
+        x = torch.sigmoid(self.fc2(x))
         # print("After fc2: ", x.shape)
         return x

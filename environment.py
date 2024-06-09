@@ -72,7 +72,7 @@ class CustomEnv(gym.Env):
         x_pos, y_pos, radius = action
         x_pos = np.clip(x_pos * self.target.shape[1], 0, self.target.shape[1] - 1)
         y_pos = np.clip(y_pos * self.target.shape[0], 0, self.target.shape[0] - 1)
-        radius = np.clip(max(1, radius * min(self.target.shape[:2]) / 2), 1, min(self.target.shape[:2]) / 2)
+        radius = np.clip(1 + radius * min(self.target.shape[:2]) / 2, 1, min(self.target.shape[:2]) / 2)
         # print("x, y, r : ", x_pos, y_pos, radius)
 
         x_pos = np.array([x_pos])
