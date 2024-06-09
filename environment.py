@@ -11,7 +11,7 @@ import torch
 def Draw_particules(targetIm, testIm, x_coordinates, y_coordinates, radius, semaphore):
     with semaphore:
         target_tensor = torch.FloatTensor(targetIm)
-        test_tensor = torch.FloatFloat(testIm)
+        test_tensor = torch.FloatTensor(testIm)
 
         for x, y, r in zip(x_coordinates, y_coordinates, radius):
             y, x, r = int(y), int(x), int(r)
