@@ -86,7 +86,7 @@ class CustomEnv(gym.Env):
             done = self.current_step >= 10000 or current_loss <= 0.1 * self.init_loss
             if done:
                 reward += 100 if current_loss <= 0.1 * self.init_loss else -100
-            wandb.log({"proportional reward" :max(0, self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))})
+            wandb.log({"log10 proportional reward" : np.log10(0.01+max(0, self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2)))})
             return next_state, reward, done, {}
         except Exception as e:
             print(f"Exception during step: {e}")
