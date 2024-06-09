@@ -83,7 +83,7 @@ class CustomEnv(gym.Env):
             absolute_reward = self.previous_loss - current_loss
             proportional_reward = max(0, 100*self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))
             reward = absolute_reward + proportional_reward
-            wandb.log({"proportional reward" : np.log10(proportional_reward)})
+            wandb.log({"proportional reward" : np.log10(1+proportional_reward)})
             self.previous_loss = current_loss
             done = self.current_step >= 10000 or current_loss <= 0.1 * self.init_loss
             if done:
