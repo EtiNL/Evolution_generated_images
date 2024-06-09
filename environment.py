@@ -76,10 +76,10 @@ class CustomEnv(gym.Env):
 
         x_pos = np.array([x_pos])
         y_pos = np.array([y_pos])
-        radius = np.array([radius])
+        radius_array = np.array([radius])
 
         try:
-            self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
+            self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius_array, self.semaphore)
             if self.toile is None:
                 raise ValueError("Draw_particules returned None")
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / 255*3
