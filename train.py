@@ -15,11 +15,11 @@ import asyncio
 import traceback
 
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
-      # Ensure the environment is properly set up
     for episode in range(num_episodes):
         state = await env.setup()
         total_reward = 0
         done = False
+        step_count = 0
         while not done:
             action = agent.select_action(state)
             next_state, reward, done, _ = await env.step(action)
@@ -27,31 +27,48 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
             agent.train(replay_buffer, batch_size)
             state = next_state
             total_reward += reward
-        wandb.log({"Episode": episode + 1, "Loss": env.previous_loss, "Goal_loss": (env.init_loss * 0.2) * 100, "Epsilon": agent.epsilon})
+            step_count += 1
+            if step_count % 100 == 0:
+                wandb.log({
+                    "Episode": episode + 1,
+                    "Step": step_count,
+                    "Total Reward": total_reward,
+                    "Loss": env.previous_loss,
+                    "Goal Loss": (env.init_loss * 0.2) * 100,
+                    "Epsilon": agent.epsilon
+                })
+
+        wandb.log({
+            "Episode": episode + 1,
+            "Total Reward": total_reward,
+            "Loss": env.previous_loss,
+            "Goal Loss": (env.init_loss * 0.2) * 100,
+            "Epsilon": agent.epsilon
+        })
 
 async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
     if not image_paths:
-        print("No images found in the specified directory.")
+        wandb.alert(title="Error", text="No images found in the specified directory.")
         return
     
     try:
         random_image_path = random.choice(image_paths)
-        print(f"Selected image: {random_image_path}")
+        wandb.log({"Selected Image": random_image_path})
         env = CustomEnv(random_image_path, semaphore)
         env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
         
-        print("Starting training...")
+        wandb.log({"Training Status": "Started"})
         await train(env, agent, replay_buffer, num_episodes, batch_size)
-        print("Training completed successfully.")
+        wandb.log({"Training Status": "Completed"})
     
     except FileNotFoundError as fnf_error:
-        print(f"FileNotFoundError: {fnf_error}")
+        wandb.alert(title="FileNotFoundError", text=str(fnf_error))
     except OSError as os_error:
-        print(f"OSError: {os_error}")
+        wandb.alert(title="OSError", text=str(os_error))
     except RuntimeError as runtime_error:
-        print(f"RuntimeError: {runtime_error}")
+        wandb.alert(title="RuntimeError", text=str(runtime_error))
     except Exception as e:
-        print(f"Exception: {e}")
+        wandb.alert(title="Exception", text=str(e))
         traceback.print_exc()
 
 if __name__ == "__main__":
