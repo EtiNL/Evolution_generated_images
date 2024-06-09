@@ -11,6 +11,7 @@ import wandb
 import argparse
 
 def train(rank, env, agent, replay_buffer, num_episodes=10, batch_size=32, semaphore=None):
+    wandb.init(project="DQN-training", name=f"agent_{rank}", reinit=True)
     torch.set_num_threads(1)
     for episode in range(num_episodes):
         state = env.setup()
