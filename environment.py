@@ -50,6 +50,7 @@ class CustomEnv(gym.Env):
     def setup(self):
         try:
             self.target = load_and_resize_images(self.target_path)
+            self.target_size = self.target.shape[0]*self.target.shape[1]
             self.toile = np.zeros_like(self.target).astype(np.uint8)
             self.init_loss = loss(self.target, self.toile, self.semaphore)
             self.previous_loss = self.init_loss
@@ -79,13 +80,13 @@ class CustomEnv(gym.Env):
                 raise ValueError("Draw_particules returned None")
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / self.init_state_divisor
             current_loss = loss(self.target, self.toile, self.semaphore)
-            reward = self.previous_loss - current_loss + max(0, 100*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))
+            reward = self.previous_loss - current_loss + max(0, self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))
 
             self.previous_loss = current_loss
             done = self.current_step >= 10000 or current_loss <= 0.1 * self.init_loss
             if done:
                 reward += 100 if current_loss <= 0.1 * self.init_loss else -100
-            wandb.log({"proportional reward" :max(0, 100*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))})
+            wandb.log({"proportional reward" :max(0, self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))})
             return next_state, reward, done, {}
         except Exception as e:
             print(f"Exception during step: {e}")
