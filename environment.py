@@ -58,7 +58,7 @@ class CustomEnv(gym.Env):
             self.toile = np.zeros_like(self.target).astype(np.uint8)
             self.init_loss = loss(self.target, self.toile, self.semaphore)
             self.previous_loss = self.init_loss
-            print(f"{self.target_path} Goal loss = {self.init_loss * 0.3}")
+            print(f"{self.target_path} Goal loss = {self.init_loss * 0.1}")
             self.current_step = 0
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         except Exception as e:
@@ -89,9 +89,9 @@ class CustomEnv(gym.Env):
             print("current loss: ", current_loss, "reward: ", reward)
 
             self.previous_loss = current_loss
-            done = self.current_step >= 1000 or current_loss <= 0.3 * self.init_loss
+            done = self.current_step >= 1000 or current_loss <= 0.1 * self.init_loss
             if done:
-                reward += 100 if current_loss <= 0.3 * self.init_loss else -100
+                reward += 100 if current_loss <= 0.1 * self.init_loss else -100
             return next_state, reward, done, {}
         except Exception as e:
             print(f"Exception during step: {e}")
