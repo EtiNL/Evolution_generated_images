@@ -29,18 +29,18 @@ def loss(targetIm, testIm, semaphore):
     return loss_val.item()
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
-    print(f"Loading and resizing image: {img_path}")
+    # print(f"Loading and resizing image: {img_path}")
     if not os.path.exists(img_path):
         raise FileNotFoundError(f"The image path {img_path} does not exist.")
     img = Image.open(img_path).convert('RGB')  # Ensure the image is in RGB format
     img = img.resize(target_size)
     img_array = np.array(img)
-    print("Image loaded and resized.")
+    # print("Image loaded and resized.")
     return img_array
 
 class CustomEnv(gym.Env):
     def __init__(self, targetImg_path, semaphore):
-        print(f"Initializing CustomEnv with image: {targetImg_path}")
+        # print(f"Initializing CustomEnv with image: {targetImg_path}")
         super(CustomEnv, self).__init__()
 
         self.semaphore = semaphore
@@ -50,7 +50,7 @@ class CustomEnv(gym.Env):
         self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200, 3), dtype=np.uint8)
 
-        print("CustomEnv initialization completed.")
+        # print("CustomEnv initialization completed.")
 
     def setup(self):
         try:
