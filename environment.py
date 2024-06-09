@@ -11,7 +11,7 @@ import torch
 def Draw_particules(targetIm, testIm, x_coordinates, y_coordinates, radius, semaphore):
     with semaphore:
         target_tensor = torch.FloatTensor(targetIm)
-        test_tensor = torch.FloatTensor(testIm)
+        test_tensor = torch.FloatFloat(testIm)
 
         for x, y, r in zip(x_coordinates, y_coordinates, radius):
             y, x, r = int(y), int(x), int(r)
@@ -19,6 +19,7 @@ def Draw_particules(targetIm, testIm, x_coordinates, y_coordinates, radius, sema
             circle = (rr - y) ** 2 + (cc - x) ** 2 <= r ** 2
             color = torch.mean(target_tensor[circle], dim=0)
             test_tensor[circle] = color
+        return test_tensor.numpy()
             
 def loss(targetIm, testIm, semaphore):
     with semaphore:
@@ -63,6 +64,7 @@ class CustomEnv(gym.Env):
         except Exception as e:
             print(f"Exception during setup: {e}")
             wandb.log({"setup_exception": str(e)})
+            return None
 
     def step(self, action):
         self.current_step += 1
@@ -77,6 +79,8 @@ class CustomEnv(gym.Env):
 
         try:
             self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
+            if self.toile is None:
+                raise ValueError("Draw_particules returned None")
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
             current_loss = loss(self.target, self.toile, self.semaphore)
             reward = self.previous_loss - current_loss
@@ -89,7 +93,7 @@ class CustomEnv(gym.Env):
         except Exception as e:
             print(f"Exception during step: {e}")
             wandb.log({"step_exception": str(e)})
-            return None, None, None, None
+            return np.zeros(self.observation_space.shape), 0, True, {}
 
     def render(self, mode='human'):
         pass
