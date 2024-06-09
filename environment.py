@@ -29,28 +29,22 @@ def loss(targetIm, testIm, semaphore):
     return loss_val.item()
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
-    # print(f"Loading and resizing image: {img_path}")
     if not os.path.exists(img_path):
         raise FileNotFoundError(f"The image path {img_path} does not exist.")
-    img = Image.open(img_path).convert('RGB')  # Ensure the image is in RGB format
+    img = Image.open(img_path).convert('RGB')
     img = img.resize(target_size)
     img_array = np.array(img)
-    # print("Image loaded and resized.")
     return img_array
 
 class CustomEnv(gym.Env):
     def __init__(self, targetImg_path, semaphore):
-        # print(f"Initializing CustomEnv with image: {targetImg_path}")
         super(CustomEnv, self).__init__()
 
         self.semaphore = semaphore
         self.target_path = targetImg_path
 
-        # Gym action and observation spaces
         self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200, 3), dtype=np.uint8)
-
-        # print("CustomEnv initialization completed.")
 
     def setup(self):
         try:
@@ -72,8 +66,7 @@ class CustomEnv(gym.Env):
         x_pos, y_pos, radius = action
         x_pos = x_pos * self.target.shape[1]
         y_pos = y_pos * self.target.shape[0]
-        radius = 1 + radius * min(self.target.shape[:2]) / 2, 1, min(self.target.shape[:2]) / 2
-        # print("x, y, r : ", x_pos, y_pos, radius)
+        radius = 1 + radius * min(self.target.shape[:2]) / 2
 
         x_pos = np.array([x_pos])
         y_pos = np.array([y_pos])
@@ -86,8 +79,6 @@ class CustomEnv(gym.Env):
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / self.init_state_divisor
             current_loss = loss(self.target, self.toile, self.semaphore)
             reward = self.previous_loss - current_loss + max(0, 100*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))
-            
-            # print("current loss: ", current_loss, "reward: ", reward)
 
             self.previous_loss = current_loss
             done = self.current_step >= 10000 or current_loss <= 0.1 * self.init_loss
