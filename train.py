@@ -23,6 +23,7 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
         total_reward = 0
         done = False
         step_count = 0
+        wandb.log({"train_status": "train "})
         while not done:
             action = agent.select_action(state)
             next_state, reward, done, _ = await env.step(action)
@@ -38,6 +39,7 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
                 wandb.log({
                     "Episode": episode + 1,
                     "Step": step_count,
+                    "Step Reward": reward,
                     "Total Reward": total_reward,
                     "Loss": env.previous_loss,
                     "Goal Loss": (env.init_loss * 0.2) * 100,

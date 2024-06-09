@@ -67,10 +67,10 @@ class CustomEnv(gym.Env):
                 reward += 5.0
 
             if current_loss == self.previous_loss:
-                reward -= 0.1
+                reward -= 2
 
             self.previous_loss = current_loss
-            done = self.current_step >= 5000 or current_loss / self.init_loss <= 0.2
+            done = self.current_step >= 1000 or current_loss / self.init_loss <= 0.2
             if done:
                 reward += 100
             return next_state, reward, done, {}
