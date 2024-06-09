@@ -39,7 +39,7 @@ def train(rank, env, agent, replay_buffer, num_episodes=10, batch_size=32, semap
                 "Step Reward": reward,
                 "Total Reward": total_reward,
                 "Loss": env.previous_loss,
-                "Goal Loss": (env.init_loss * 0.1) * 100,
+                "Goal Loss": (env.init_loss * 0.1),
                 "Epsilon": agent.epsilon
             })
 
