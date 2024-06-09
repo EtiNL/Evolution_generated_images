@@ -5,8 +5,8 @@ from model import DQN_CNN
 import random
 
 class Agent:
-    def __init__(self, input_shape, action_dim, lr=1e-3, gamma=0.99, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay=0.995):
-        self.model = DQN_CNN(input_shape, action_dim)
+    def __init__(self, input_shape, action_dim, model=None, lr=1e-3, gamma=0.99, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay=0.995):
+        self.model = model if model else DQN_CNN(input_shape, action_dim)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.loss_fn = torch.nn.MSELoss()
         self.action_dim = action_dim

@@ -10,9 +10,11 @@ from replay_buffer import ReplayBuffer
 import wandb
 import argparse
 
-def train(rank, env, agent, replay_buffer, num_episodes=10, batch_size=32, semaphore=None):
+def train(rank, env, agent, shared_model, replay_buffer, num_episodes=10, batch_size=32, semaphore=None):
     wandb.init(project="DQN-training", name=f"agent_{rank}")
     torch.set_num_threads(1)
+    agent.model = shared_model  # Use the shared model
+
     for episode in range(num_episodes):
         state = env.setup()
         if state is None:
@@ -54,12 +56,11 @@ if __name__ == "__main__":
     parser.add_argument('--buffer_capacity', type=int, default=10000)
     args = parser.parse_args()
 
-
-    input_shape = (1, 200, 200, 3)
+    input_shape = (1, 200, 200)
     action_dim = 3
 
     replay_buffer = ReplayBuffer(args.buffer_capacity)
-    agents = [Agent(input_shape, action_dim) for _ in range(args.num_agents)]
+    shared_model = Agent(input_shape, action_dim).model  # Create a shared model
 
     if not os.path.exists(training_folder_path):
         raise FileNotFoundError(f"Training folder path {training_folder_path} does not exist.")
@@ -74,11 +75,12 @@ if __name__ == "__main__":
     processes = []
     for rank in range(args.num_agents):
         env = CustomEnv(random.choice(image_paths), semaphore)
-        p = mp.Process(target=train, args=(rank, env, agents[rank], replay_buffer, args.num_episodes, args.batch_size, semaphore))
+        agent = Agent(input_shape, action_dim)
+        p = mp.Process(target=train, args=(rank, env, agent, shared_model, replay_buffer, args.num_episodes, args.batch_size, semaphore))
         p.start()
         processes.append(p)
 
     for p in processes:
         p.join()
 
-    torch.save(agents[0].model.state_dict(), 'final_model.pth')
+    torch.save(shared_model.state_dict(), 'final_model.pth')
