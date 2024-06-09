@@ -29,6 +29,7 @@ def loss(targetIm, testIm, semaphore):
     return loss_val.item()
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
+
     if not os.path.exists(img_path):
         raise FileNotFoundError(f"The image path {img_path} does not exist.")
     img = Image.open(img_path).convert('RGB')
@@ -84,11 +85,13 @@ class CustomEnv(gym.Env):
             done = self.current_step >= 10000 or current_loss <= 0.1 * self.init_loss
             if done:
                 reward += 100 if current_loss <= 0.1 * self.init_loss else -100
+            wandb.log({"proportional reward" :max(0, 100*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))})
             return next_state, reward, done, {}
         except Exception as e:
             print(f"Exception during step: {e}")
             wandb.log({"step_exception": str(e)})
             return np.zeros(self.observation_space.shape), 0, True, {}
+        
 
     def render(self, mode='human'):
         pass
