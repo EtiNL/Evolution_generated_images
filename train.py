@@ -4,31 +4,28 @@ import random
 from PIL import Image
 import torch
 import torch.multiprocessing as mp
-import argparse
 from environment import CustomEnv
 from agent import Agent
 from replay_buffer import ReplayBuffer
 import wandb
-from get_dataset import get_images
-import pycuda.driver as cuda
-import asyncio
-import traceback
+import argparse
 
-async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
+def train(rank, env, agent, replay_buffer, num_episodes=10, batch_size=32, semaphore=None):
+    torch.set_num_threads(1)
     for episode in range(num_episodes):
-        state = await env.setup()
+        state = env.setup()
         if state is None:
-            wandb.log({"train_status": "setup_failed"})
+            wandb.log({"train_status": f"setup_failed_{rank}"})
             continue
         total_reward = 0
         done = False
         step_count = 0
-        wandb.log({"train_status": "train "})
+        wandb.log({"train_status": f"train_{rank}"})
         while not done:
             action = agent.select_action(state)
-            next_state, reward, done, _ = await env.step(action)
+            next_state, reward, done, _ = env.step(action)
             if next_state is None:
-                wandb.log({"train_status": "step_failed"})
+                wandb.log({"train_status": f"step_failed_{rank}"})
                 break
             agent.store_experience(replay_buffer, state, action, reward, next_state, done)
             agent.train(replay_buffer, batch_size)
@@ -37,6 +34,7 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
             step_count += 1
             if step_count % 100 == 0:
                 wandb.log({
+                    "Agent": rank,
                     "Episode": episode + 1,
                     "Step": step_count,
                     "Step Reward": reward,
@@ -47,6 +45,7 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
                 })
 
         wandb.log({
+            "Agent": rank,
             "Episode": episode + 1,
             "Total Reward": total_reward,
             "Loss": env.previous_loss,
@@ -54,34 +53,10 @@ async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
             "Epsilon": agent.epsilon
         })
 
-async def parallel_train(image_paths, agent, replay_buffer, num_episodes=10, batch_size=32, target_size=(64, 64), semaphore=None):
-    if not image_paths:
-        wandb.alert(title="Error", text="No images found in the specified directory.")
-        return
-    
-    try:
-        random_image_path = random.choice(image_paths)
-        wandb.log({"Selected Image": random_image_path})
-        env = CustomEnv(random_image_path, semaphore)
-        env.target = np.array(Image.open(random_image_path).resize(target_size)).astype(np.uint8)
-        
-        wandb.log({"Training Status": "Started"})
-        await train(env, agent, replay_buffer, num_episodes, batch_size)
-        wandb.log({"Training Status": "Completed"})
-    
-    except FileNotFoundError as fnf_error:
-        wandb.alert(title="FileNotFoundError", text=str(fnf_error))
-    except OSError as os_error:
-        wandb.alert(title="OSError", text=str(os_error))
-    except RuntimeError as runtime_error:
-        wandb.alert(title="RuntimeError", text=str(runtime_error))
-    except Exception as e:
-        wandb.alert(title="Exception", text=str(e))
-        traceback.print_exc()
-
 if __name__ == "__main__":
     mp.set_start_method('spawn')
     training_folder_path = '/content/Evolution_generated_images/trainning_images'
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_agents', type=int, default=4)
     parser.add_argument('--num_episodes', type=int, default=10)
@@ -110,10 +85,16 @@ if __name__ == "__main__":
     if not image_paths:
         raise FileNotFoundError(f"No images found in the training folder path {training_folder_path}.")
 
-    semaphore = asyncio.Semaphore(1)
+    semaphore = mp.Semaphore(1)
 
-    loop = asyncio.get_event_loop()
-    tasks = [parallel_train(image_paths, agent, replay_buffer, args.num_episodes, args.batch_size, (64, 64), semaphore) for agent in agents]
-    loop.run_until_complete(asyncio.gather(*tasks))
+    processes = []
+    for rank in range(args.num_agents):
+        env = CustomEnv(random.choice(image_paths), semaphore)
+        p = mp.Process(target=train, args=(rank, env, agents[rank], replay_buffer, args.num_episodes, args.batch_size, semaphore))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
 
     torch.save(agents[0].model.state_dict(), 'final_model.pth')

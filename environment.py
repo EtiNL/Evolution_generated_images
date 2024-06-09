@@ -2,12 +2,30 @@ import numpy as np
 import gym
 from gym import spaces
 from PIL import Image
-from draw_particles import Draw_particules
-from score import loss
 import cv2
-import asyncio
+import torch.multiprocessing as mp
 import os
 import wandb
+import torch
+
+def Draw_particules(targetIm, testIm, x_coordinates, y_coordinates, radius, semaphore):
+    with semaphore:
+        target_tensor = torch.FloatTensor(targetIm)
+        test_tensor = torch.FloatTensor(testIm)
+
+        for x, y, r in zip(x_coordinates, y_coordinates, radius):
+            y, x, r = int(y), int(x), int(r)
+            rr, cc = np.ogrid[:target_tensor.shape[0], :target_tensor.shape[1]]
+            circle = (rr - y) ** 2 + (cc - x) ** 2 <= r ** 2
+            color = torch.mean(target_tensor[circle], dim=0)
+            test_tensor[circle] = color
+            
+def loss(targetIm, testIm, semaphore):
+    with semaphore:
+        target_tensor = torch.FloatTensor(targetIm)
+        test_tensor = torch.FloatTensor(testIm)
+        loss_val = torch.mean(torch.abs(target_tensor - test_tensor))
+    return loss_val.item()
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
     print(f"Loading and resizing image: {img_path}")
@@ -33,20 +51,20 @@ class CustomEnv(gym.Env):
 
         print("CustomEnv initialization completed.")
 
-    async def setup(self):
+    def setup(self):
         try:
             self.target = load_and_resize_images(self.target_path)
             self.toile = np.zeros_like(self.target).astype(np.uint8)
-            self.init_loss = await loss(self.target, self.toile, self.semaphore)
+            self.init_loss = loss(self.target, self.toile, self.semaphore)
             self.previous_loss = self.init_loss
-            print(f"{self.target_path} Goal loss = {self.init_loss * 0.2}")
+            print(f"{self.target_path} Goal loss = {self.init_loss * 0.3}")
             self.current_step = 0
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         except Exception as e:
             print(f"Exception during setup: {e}")
             wandb.log({"setup_exception": str(e)})
 
-    async def step(self, action):
+    def step(self, action):
         self.current_step += 1
         x_pos, y_pos, radius = action
         x_pos = np.clip(x_pos * self.target.shape[1], 0, self.target.shape[1] - 1)
@@ -58,21 +76,15 @@ class CustomEnv(gym.Env):
         radius = np.array([radius])
 
         try:
-            self.toile = await Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
+            self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius, self.semaphore)
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
-            current_loss = await loss(self.target, self.toile, self.semaphore)
+            current_loss = loss(self.target, self.toile, self.semaphore)
             reward = self.previous_loss - current_loss
 
-            if current_loss < self.previous_loss:
-                reward += 5.0
-
-            if current_loss == self.previous_loss:
-                reward -= 2
-
             self.previous_loss = current_loss
-            done = self.current_step >= 1000 or current_loss / self.init_loss <= 0.2
+            done = self.current_step >= 1000 or current_loss <= 0.3 * self.init_loss
             if done:
-                reward += 100
+                reward += 100 if current_loss <= 0.3 * self.init_loss else -100
             return next_state, reward, done, {}
         except Exception as e:
             print(f"Exception during step: {e}")
@@ -84,21 +96,3 @@ class CustomEnv(gym.Env):
 
     def close(self):
         pass
-    
-async def test():
-    semaphore = asyncio.Semaphore(1)
-    image_path = 'trainning_images/c_sascha_fonseca_wildlife_photographer_of_the_year-taille1200_63877da71854f.jpg'
-    env = CustomEnv(image_path, semaphore)
-    await env.setup()
-    if not hasattr(env, 'target'):
-        print(f"Image at {image_path} not found. Exiting.")
-        return
-    state = await env.reset()
-    for _ in range(10):
-        action = np.random.rand(3)
-        state, reward, done, _ = await env.step(action)
-        if done:
-            break
-
-if __name__ == "__main__":
-    asyncio.run(test())
