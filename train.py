@@ -33,16 +33,15 @@ def train(rank, env, agent, replay_buffer, num_episodes=10, batch_size=32, semap
             state = next_state
             total_reward += reward
             step_count += 1
-            if step_count % 10 == 0:
-                wandb.log({
-                    "Episode": episode + 1,
-                    "Step": step_count,
-                    "Step Reward": reward,
-                    "Total Reward": total_reward,
-                    "Loss": env.previous_loss,
-                    "Goal Loss": (env.init_loss * 0.1) * 100,
-                    "Epsilon": agent.epsilon
-                })
+            wandb.log({
+                "Episode": episode + 1,
+                "Step": step_count,
+                "Step Reward": reward,
+                "Total Reward": total_reward,
+                "Loss": env.previous_loss,
+                "Goal Loss": (env.init_loss * 0.1) * 100,
+                "Epsilon": agent.epsilon
+            })
 
 if __name__ == "__main__":
     mp.set_start_method('spawn')
