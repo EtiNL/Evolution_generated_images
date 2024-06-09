@@ -81,7 +81,7 @@ class CustomEnv(gym.Env):
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / self.init_state_divisor
             current_loss = loss(self.target, self.toile, self.semaphore)
             absolute_reward = self.previous_loss - current_loss
-            proportional_reward = max(0, self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2))
+            proportional_reward = self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2)
             reward = absolute_reward + proportional_reward
             wandb.log({"proportional reward" : proportional_reward,
                        "rayon": int(radius)})
