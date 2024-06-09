@@ -7,12 +7,13 @@ from score import loss
 import cv2
 import asyncio
 import os
+import wandb
 
 def load_and_resize_images(img_path, target_size=(200, 200)):
     print(f"Loading and resizing image: {img_path}")
     if not os.path.exists(img_path):
         raise FileNotFoundError(f"The image path {img_path} does not exist.")
-    img = Image.open(img_path)
+    img = Image.open(img_path).convert('RGB')  # Ensure the image is in RGB format
     img = img.resize(target_size)
     img_array = np.array(img)
     print("Image loaded and resized.")
@@ -36,18 +37,16 @@ class CustomEnv(gym.Env):
         try:
             self.target = load_and_resize_images(self.target_path)
             self.toile = np.zeros_like(self.target).astype(np.uint8)
-            # print('loss computation...')
             self.init_loss = await loss(self.target, self.toile, self.semaphore)
-            # print('finished loss computation')
             self.previous_loss = self.init_loss
             print(f"{self.target_path} Goal loss = {self.init_loss * 0.2}")
             self.current_step = 0
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         except Exception as e:
             print(f"Exception during setup: {e}")
+            wandb.log({"setup_exception": str(e)})
 
     async def step(self, action):
-        # print(f"Step {self.current_step}, action: {action}")
         self.current_step += 1
         x_pos, y_pos, radius = action
         x_pos = np.clip(x_pos * self.target.shape[1], 0, self.target.shape[1] - 1)
@@ -72,18 +71,21 @@ class CustomEnv(gym.Env):
 
             self.previous_loss = current_loss
             done = self.current_step >= 5000 or current_loss / self.init_loss <= 0.2
-            if done: reward += 100
+            if done:
+                reward += 100
             return next_state, reward, done, {}
         except Exception as e:
             print(f"Exception during step: {e}")
+            wandb.log({"step_exception": str(e)})
+            return None, None, None, None
 
     def render(self, mode='human'):
         pass
 
     def close(self):
         pass
-
-async def main():
+    
+async def test():
     semaphore = asyncio.Semaphore(1)
     image_path = 'trainning_images/c_sascha_fonseca_wildlife_photographer_of_the_year-taille1200_63877da71854f.jpg'
     env = CustomEnv(image_path, semaphore)
@@ -99,4 +101,4 @@ async def main():
             break
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(test())

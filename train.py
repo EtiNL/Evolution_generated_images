@@ -17,12 +17,18 @@ import traceback
 async def train(env, agent, replay_buffer, num_episodes=10, batch_size=32):
     for episode in range(num_episodes):
         state = await env.setup()
+        if state is None:
+            wandb.log({"train_status": "setup_failed"})
+            continue
         total_reward = 0
         done = False
         step_count = 0
         while not done:
             action = agent.select_action(state)
             next_state, reward, done, _ = await env.step(action)
+            if next_state is None:
+                wandb.log({"train_status": "step_failed"})
+                break
             agent.store_experience(replay_buffer, state, action, reward, next_state, done)
             agent.train(replay_buffer, batch_size)
             state = next_state
@@ -88,7 +94,7 @@ if __name__ == "__main__":
         "buffer_capacity": args.buffer_capacity
     })
 
-    input_shape = (1, 200, 200)
+    input_shape = (1, 200, 200, 3)
     action_dim = 3
 
     replay_buffer = ReplayBuffer(args.buffer_capacity)
