@@ -65,13 +65,6 @@ if __name__ == "__main__":
     parser.add_argument('--buffer_capacity', type=int, default=10000)
     args = parser.parse_args()
 
-    wandb.init(project="DQN-training", config={
-        "num_agents": args.num_agents,
-        "num_episodes": args.num_episodes,
-        "batch_size": args.batch_size,
-        "buffer_capacity": args.buffer_capacity
-    })
-
     input_shape = (1, 200, 200, 3)
     action_dim = 3
 
