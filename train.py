@@ -11,7 +11,12 @@ import wandb
 import argparse
 
 def train(rank, env, agent, replay_buffer, num_episodes=10, batch_size=32, semaphore=None):
-    wandb.init(project="DQN-training", name=f"agent_{rank}", reinit=True)
+    wandb.init(project="DQN-training", name=f"agent_{rank}", config={
+        "num_agents": args.num_agents,
+        "num_episodes": args.num_episodes,
+        "batch_size": args.batch_size,
+        "buffer_capacity": args.buffer_capacity
+    })
     torch.set_num_threads(1)
     for episode in range(num_episodes):
         state = env.setup()
@@ -64,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--buffer_capacity', type=int, default=10000)
     args = parser.parse_args()
+
 
     input_shape = (1, 200, 200, 3)
     action_dim = 3
