@@ -38,7 +38,7 @@ class Agent:
 
         # Convert lists to tensors efficiently
         states = torch.FloatTensor(np.array(states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
-        actions = torch.FloatTensor(np.array(actions))  # Convert to FloatTensor
+        actions = torch.FloatTensor(np.array(actions)).long()  # Convert to LongTensor for indexing
         rewards = torch.FloatTensor(np.array(rewards))  # Shape: [batch_size]
         next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
         dones = torch.FloatTensor(np.array(dones))  # Shape: [batch_size]
@@ -48,7 +48,7 @@ class Agent:
 
         # Ensure the actions are within the valid range
         actions = actions.clamp(0, self.action_dim - 1)  # Clamp actions to be within valid range
-        actions = actions[:, 0]  # Use only the first dimension of actions for indexing
+        actions = actions[:, 0].long()  # Use only the first dimension of actions for indexing and convert to LongTensor
 
         q_expected = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
 
