@@ -84,7 +84,7 @@ class CustomEnv(gym.Env):
                 raise ValueError("Draw_particules returned None")
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / 255*3
             current_loss = loss(self.target, self.toile, self.semaphore)
-            reward = self.previous_loss - current_loss
+            reward = self.previous_loss - current_loss + max(10*(self.previous_loss - current_loss)/(np.pi*radius[0]))
             
             # print("current loss: ", current_loss, "reward: ", reward)
 
