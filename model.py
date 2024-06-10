@@ -47,3 +47,25 @@ class DQN_CNN(nn.Module):
         x = torch.sigmoid(self.fc2(x))
 
         return x
+
+
+if __name__=="__main__":
+    input_shape = (1, 200, 200)
+    output_dim = 3
+
+    model = DQN_CNN(input_shape, output_dim)
+    print("Model Summary:")
+    print(model)
+
+    # Print total number of parameters
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Total parameters: {total_params}")
+
+    # Print trainable parameters
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Trainable parameters: {trainable_params}")
+
+    # Test the forward pass with a dummy input
+    dummy_input = torch.randn(1, *input_shape)  # Batch size of 1
+    output = model(dummy_input)
+    print(f"Output shape: {output.shape}")
