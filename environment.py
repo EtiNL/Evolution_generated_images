@@ -86,7 +86,7 @@ class CustomEnv(gym.Env):
             wandb.log({"proportional reward" : proportional_reward,
                        "rayon": int(radius)})
             self.previous_loss = current_loss
-            done = self.current_step >= 10000 or current_loss <= 0.1 * self.init_loss
+            done = self.current_step >= 10_000 or current_loss <= 0.1 * self.init_loss
             if done:
                 reward += 100 if current_loss <= 0.1 * self.init_loss else -100
             return next_state, reward, done, {}
