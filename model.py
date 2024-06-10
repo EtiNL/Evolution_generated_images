@@ -32,7 +32,7 @@ class DQN_CNN(nn.Module):
         x1 = F.relu(self.conv1(x))
         x2 = F.relu(self.conv2(x1))
         x3 = F.relu(self.conv3(x2))
-        x4 = F.relu(self.conv4(x4))
+        x4 = F.relu(self.conv4(x3))
 
         # Flatten each conv layer output
         x1_flat = x1.view(x1.size(0), -1)
