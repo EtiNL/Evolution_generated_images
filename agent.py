@@ -7,6 +7,7 @@ import random
 class Agent:
     def __init__(self, input_shape, action_dim, model=None, lr=1e-3, gamma=0.99, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay=0.995):
         self.model = model if model else DQN_CNN(input_shape, action_dim)
+        self.target_model = DQN_CNN(input_shape, action_dim)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.loss_fn = torch.nn.MSELoss()
         self.action_dim = action_dim
@@ -44,7 +45,7 @@ class Agent:
         dones = torch.FloatTensor(np.array(dones))  # Shape: [batch_size]
 
         q_values = self.model(states)  # Shape: [batch_size, action_dim]
-        next_q_values = self.model(next_states)  # Shape: [batch_size, action_dim]
+        next_q_values = self.target_model(next_states)  # Shape: [batch_size, action_dim]
 
         # Ensure the actions are within the valid range
         actions = actions.clamp(0, self.action_dim - 1)  # Clamp actions to be within valid range

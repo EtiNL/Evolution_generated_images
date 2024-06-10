@@ -10,10 +10,11 @@ from replay_buffer import ReplayBuffer
 import wandb
 import argparse
 
-def train(rank, env, agent, shared_model, replay_buffer, num_episodes=10, batch_size=32, semaphore=None):
+def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episodes=10, batch_size=32, semaphore=None, target_update_interval=10):
     wandb.init(project="DQN-training", name=f"agent_{rank}")
     torch.set_num_threads(1)
     agent.model = shared_model  # Use the shared model
+    agent.target_model = target_model  # Use the shared target model
 
     for episode in range(num_episodes):
         state = env.setup()
@@ -44,6 +45,11 @@ def train(rank, env, agent, shared_model, replay_buffer, num_episodes=10, batch_
                 "Goal Loss": (env.init_loss * 0.1),
                 "Epsilon": agent.epsilon
             })
+        
+        # Update the target model every `target_update_interval` episodes
+        if (episode + 1) % target_update_interval == 0:
+            target_model.load_state_dict(shared_model.state_dict())
+            wandb.log({"target_model_update": episode + 1})
 
 if __name__ == "__main__":
     mp.set_start_method('spawn')
@@ -54,6 +60,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_episodes', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--buffer_capacity', type=int, default=10000)
+    parser.add_argument('--target_update_interval', type=int, default=10)
     args = parser.parse_args()
 
     input_shape = (1, 200, 200)
@@ -61,6 +68,9 @@ if __name__ == "__main__":
 
     replay_buffer = ReplayBuffer(args.buffer_capacity)
     shared_model = Agent(input_shape, action_dim).model  # Create a shared model
+    target_model = Agent(input_shape, action_dim).model  # Create a target model
+    target_model.load_state_dict(shared_model.state_dict())
+    target_model.eval()  # Target model is not updated directly
 
     if not os.path.exists(training_folder_path):
         raise FileNotFoundError(f"Training folder path {training_folder_path} does not exist.")
@@ -76,7 +86,7 @@ if __name__ == "__main__":
     for rank in range(args.num_agents):
         env = CustomEnv(random.choice(image_paths), semaphore)
         agent = Agent(input_shape, action_dim, model=shared_model)
-        p = mp.Process(target=train, args=(rank, env, agent, shared_model, replay_buffer, args.num_episodes, args.batch_size, semaphore))
+        p = mp.Process(target=train, args=(rank, env, agent, shared_model, target_model, replay_buffer, args.num_episodes, args.batch_size, semaphore, args.target_update_interval))
         p.start()
         processes.append(p)
 
