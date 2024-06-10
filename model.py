@@ -5,22 +5,22 @@ import torch.nn.functional as F
 class DQN_CNN(nn.Module):
     def __init__(self, input_shape, output_dim):
         super(DQN_CNN, self).__init__()
-        self.conv1 = nn.Conv2d(input_shape[0], 32, kernel_size=32, stride=8)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=16, stride=4)
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=8, stride=2)
+        self.conv1 = nn.Conv2d(input_shape[0], 32, kernel_size=32, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=16, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=8, stride=1)
         self.conv4 = nn.Conv2d(64, 128, kernel_size=4, stride=1)
         
         def conv2d_size_out(size, kernel_size, stride):
             return (size - (kernel_size - 1) - 1) // stride + 1
 
-        conv_w_1 = conv2d_size_out(input_shape[1], 32, 8)
-        conv_h_1 = conv2d_size_out(input_shape[2], 32, 8)
-        conv_w_2 = conv2d_size_out(conv2d_size_out(input_shape[1], 32, 8), 16, 4)
-        conv_h_2 = conv2d_size_out(conv2d_size_out(input_shape[2], 32, 8), 16, 4)
-        conv_w_3 = conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[1], 32, 8), 16, 4), 8, 2)
-        conv_h_3 = conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[2], 32, 8), 16, 4), 8, 2)
-        conv_w_4 = conv2d_size_out(conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[1], 32, 8), 16, 4), 8, 2), 4, 1)
-        conv_h_4 = conv2d_size_out(conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[2], 32, 8), 16, 4), 8, 2), 4, 1)
+        conv_w_1 = conv2d_size_out(input_shape[1], 32, 4)
+        conv_h_1 = conv2d_size_out(input_shape[2], 32, 4)
+        conv_w_2 = conv2d_size_out(conv2d_size_out(input_shape[1], 32, 4), 16, 2)
+        conv_h_2 = conv2d_size_out(conv2d_size_out(input_shape[2], 32, 4), 16, 2)
+        conv_w_3 = conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[1], 32, 4), 16, 2), 8, 1)
+        conv_h_3 = conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[2], 32, 4), 16, 2), 8, 1)
+        conv_w_4 = conv2d_size_out(conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[1], 32, 4), 16, 2), 8, 1), 4, 1)
+        conv_h_4 = conv2d_size_out(conv2d_size_out(conv2d_size_out(conv2d_size_out(input_shape[2], 32, 4), 16, 2), 8, 1), 4, 1)
         
         self.linear_input_size = (conv_w_4 * conv_h_4 * 128) + (conv_w_3 * conv_h_3 * 64) + (conv_w_2 * conv_h_2 * 64) + (conv_w_1 * conv_h_1 * 32)
 
