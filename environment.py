@@ -7,6 +7,7 @@ import torch.multiprocessing as mp
 import os
 import wandb
 import torch
+import random
 
 def Draw_particules(targetIm, testIm, x_coordinates, y_coordinates, radius, semaphore):
     with semaphore:
@@ -38,25 +39,32 @@ def load_and_resize_images(img_path, target_size=(200, 200)):
     return img_array
 
 class CustomEnv(gym.Env):
-    def __init__(self, targetImg_path, semaphore):
+    def __init__(self, rank, targetImg_paths, semaphore):
         super(CustomEnv, self).__init__()
 
         self.semaphore = semaphore
-        self.target_path = targetImg_path
+        self.target_paths = targetImg_paths
+        self.rank = rank
 
         self.action_space = spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(200, 200), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(200, 200), dtype=np.float32)
 
     def setup(self):
+        
         try:
-            self.target = load_and_resize_images(self.target_path)
+            self.target = load_and_resize_images(random.choice(self.target_paths))
             self.target_size = self.target.shape[0]*self.target.shape[1]
             self.toile = np.zeros_like(self.target).astype(np.uint8)
             self.init_loss = loss(self.target, self.toile, self.semaphore)
             self.previous_loss = self.init_loss
-            print(f"{self.target_path} Goal loss = {self.init_loss * 0.1}")
             self.current_step = 0
+            
+            print(f"Agent {self.rank}:")
+            print(f"    target: {self.target_path}")
+            print(f"Goal loss = {self.init_loss * 0.1}")
+            
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
+        
         except Exception as e:
             print(f"Exception during setup: {e}")
             wandb.log({"setup_exception": str(e)})

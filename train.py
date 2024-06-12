@@ -1,7 +1,4 @@
-import numpy as np
 import os
-import random
-from PIL import Image
 import torch
 import torch.multiprocessing as mp
 from environment import CustomEnv
@@ -87,7 +84,7 @@ if __name__ == "__main__":
 
     processes = []
     for rank in range(args.num_agents):
-        env = CustomEnv(random.choice(image_paths), semaphore)
+        env = CustomEnv(rank, image_paths, semaphore)
         agent = Agent(input_shape, action_dim, model=shared_model)
         p = mp.Process(target=train, args=(rank, env, agent, shared_model, target_model, replay_buffer, args.num_episodes, args.batch_size, semaphore, args.target_update_interval))
         p.start()
