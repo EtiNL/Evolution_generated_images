@@ -67,8 +67,11 @@ if __name__ == "__main__":
     action_dim = 3
 
     replay_buffer = ReplayBuffer(args.buffer_capacity)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     shared_model = Agent(input_shape, action_dim).model  # Create a shared model
+    shared_model.to(torch.device(device))
     target_model = Agent(input_shape, action_dim).model  # Create a target model
+    target_model.to(torch.device(device))
     target_model.load_state_dict(shared_model.state_dict())
     target_model.eval()  # Target model is not updated directly
 
