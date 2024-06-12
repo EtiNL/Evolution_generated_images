@@ -64,7 +64,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input_shape = (1, 200, 200)
-    action_dim = 3
+    action_dim = 2
 
     replay_buffer = ReplayBuffer(args.buffer_capacity)
     device = "cuda" if torch.cuda.is_available() else "cpu"
