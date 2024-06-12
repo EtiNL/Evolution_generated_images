@@ -21,7 +21,8 @@ def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episo
         total_reward = 0
         done = False
         step_count = 0
-        wandb.log({"train_status": f"train_{rank}"})
+        target_update = 0
+        
         while not done:
             action = agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
@@ -46,7 +47,8 @@ def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episo
             # Update the target model every `target_update_interval` episodes
             if (step_count + 1) % target_update_interval == 0:
                 target_model.load_state_dict(shared_model.state_dict())
-                wandb.log({"target_model_update": episode + 1})
+                target_update += 1
+                wandb.log({"target_model_update": target_update})
 
 if __name__ == "__main__":
     mp.set_start_method('spawn')
