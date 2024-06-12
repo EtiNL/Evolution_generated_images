@@ -44,7 +44,7 @@ class CustomEnv(gym.Env):
         self.semaphore = semaphore
         self.target_path = targetImg_path
 
-        self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
+        self.action_space = spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200), dtype=np.uint8)
 
     def setup(self):
@@ -68,10 +68,10 @@ class CustomEnv(gym.Env):
         x_pos = x_pos * self.target.shape[1]
         y_pos = y_pos * self.target.shape[0]
         
-        radius = [self.find_radius(x_pos, y_pos)]
+        radius = self.find_radius(x_pos, y_pos)
 
         try:
-            self.toile = Draw_particules(self.target, self.toile, [x_pos], [y_pos], radius, self.semaphore)
+            self.toile = Draw_particules(self.target, self.toile, np.array([x_pos]), np.array([y_pos]), np.array([radius]), self.semaphore)
             if self.toile is None:
                 raise ValueError("Draw_particules returned None")
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
