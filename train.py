@@ -7,7 +7,7 @@ from replay_buffer import ReplayBuffer
 import wandb
 import argparse
 
-def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episodes=10, batch_size=32, semaphore=None, target_update_interval=10):
+def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episodes=10, batch_size=32, target_update_interval=100):
     wandb.init(project="DQN-training", name=f"agent_{rank}")
     torch.set_num_threads(1)
     agent.model = shared_model  # Use the shared model
@@ -43,10 +43,10 @@ def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episo
                 "Epsilon": agent.epsilon
             })
         
-        # Update the target model every `target_update_interval` episodes
-        if (episode + 1) % target_update_interval == 0:
-            target_model.load_state_dict(shared_model.state_dict())
-            wandb.log({"target_model_update": episode + 1})
+            # Update the target model every `target_update_interval` episodes
+            if (step_count + 1) % target_update_interval == 0:
+                target_model.load_state_dict(shared_model.state_dict())
+                wandb.log({"target_model_update": episode + 1})
 
 if __name__ == "__main__":
     mp.set_start_method('spawn')
