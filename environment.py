@@ -62,7 +62,8 @@ class CustomEnv(gym.Env):
             
             print(f"Agent {self.rank}:")
             print(f"    target: {self.target_path}")
-            print(f"Goal loss = {self.init_loss * 0.1}")
+            print(f"    Goal loss = {self.init_loss * 0.1}")
+            wandb.log({"target": self.target_path})
             
             return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         
@@ -76,10 +77,9 @@ class CustomEnv(gym.Env):
         x_pos, y_pos = action
         x_pos = x_pos * self.target.shape[1]
         y_pos = y_pos * self.target.shape[0]
-        
-        radius = self.find_radius(x_pos, y_pos)
 
         try:
+            radius = self.find_radius(x_pos, y_pos)
             self.toile = Draw_particules(self.target, self.toile, np.array([x_pos]), np.array([y_pos]), np.array([radius]), self.semaphore)
             if self.toile is None:
                 raise ValueError("Draw_particules returned None")
@@ -89,7 +89,7 @@ class CustomEnv(gym.Env):
             proportional_reward = self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2)
             reward = absolute_reward + proportional_reward
             wandb.log({"proportional reward" : proportional_reward,
-                       "rayon": int(radius)})
+                       "rayon": radius})
             self.previous_loss = current_loss
             done = self.current_step >= 10_000 or current_loss <= 0.1 * self.init_loss
             if done:
