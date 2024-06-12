@@ -52,7 +52,8 @@ class CustomEnv(gym.Env):
     def setup(self):
         
         try:
-            self.target = load_and_resize_images(random.choice(self.target_paths))
+            self.target_path = random.choice(self.target_paths)
+            self.target = load_and_resize_images(self.target_path)
             self.target_size = self.target.shape[0]*self.target.shape[1]
             self.toile = np.zeros_like(self.target).astype(np.uint8)
             self.init_loss = loss(self.target, self.toile, self.semaphore)
