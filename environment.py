@@ -45,7 +45,7 @@ class CustomEnv(gym.Env):
         self.target_path = targetImg_path
 
         self.action_space = spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(200, 200), dtype=np.uint8)
 
     def setup(self):
         try:
