@@ -86,7 +86,7 @@ if __name__ == "__main__":
     for rank in range(args.num_agents):
         env = CustomEnv(rank, image_paths, semaphore)
         agent = Agent(input_shape, action_dim, model=shared_model)
-        p = mp.Process(target=train, args=(rank, env, agent, shared_model, target_model, replay_buffer, args.num_episodes, args.batch_size, semaphore, args.target_update_interval))
+        p = mp.Process(target=train, args=(rank, env, agent, shared_model, target_model, replay_buffer, args.num_episodes, args.batch_size, args.target_update_interval))
         p.start()
         processes.append(p)
 
