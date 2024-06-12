@@ -6,8 +6,9 @@ import random
 
 class Agent:
     def __init__(self, input_shape, action_dim, model=None, lr=1e-3, gamma=0.99, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay=0.995):
-        self.model = model if model else DQN_CNN(input_shape, action_dim)
-        self.target_model = DQN_CNN(input_shape, action_dim)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = model if model else DQN_CNN(input_shape, action_dim).to(self.device)
+        self.target_model = DQN_CNN(input_shape, action_dim).to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.loss_fn = torch.nn.MSELoss()
         self.action_dim = action_dim
@@ -17,15 +18,14 @@ class Agent:
         self.epsilon = epsilon_start
         self.epsilon_min = epsilon_end
         self.epsilon_decay = epsilon_decay
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def select_action(self, state):
         if random.random() < self.epsilon:
             return np.random.rand(self.action_dim)
         else:
-            state = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+            state = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0).to(self.device)  # Add batch and channel dimensions
             with torch.no_grad():
-                action = self.model(state).numpy().flatten()
+                action = self.model(state).cpu().numpy().flatten()
             return action
 
     def store_experience(self, replay_buffer, state, action, reward, next_state, done):
@@ -39,11 +39,11 @@ class Agent:
         states, actions, rewards, next_states, dones = zip(*experiences)
 
         # Convert lists to tensors efficiently
-        states = torch.FloatTensor(np.array(states)).unsqueeze(1).to(torch.device(self.device))  # Shape: [batch_size, 1, 200, 200]
-        actions = torch.FloatTensor(np.array(actions)).long()  # Convert to LongTensor for indexing
-        rewards = torch.FloatTensor(np.array(rewards))  # Shape: [batch_size]
-        next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
-        dones = torch.FloatTensor(np.array(dones))  # Shape: [batch_size]
+        states = torch.FloatTensor(np.array(states)).unsqueeze(1).to(self.device)  # Shape: [batch_size, 1, 200, 200]
+        actions = torch.FloatTensor(np.array(actions)).long().to(self.device)  # Convert to LongTensor for indexing
+        rewards = torch.FloatTensor(np.array(rewards)).to(self.device)  # Shape: [batch_size]
+        next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1).to(self.device)  # Shape: [batch_size, 1, 200, 200]
+        dones = torch.FloatTensor(np.array(dones)).to(self.device)  # Shape: [batch_size]
 
         q_values = self.model(states)  # Shape: [batch_size, action_dim]
         next_q_values = self.target_model(next_states)  # Shape: [batch_size, action_dim]
