@@ -14,7 +14,7 @@ def Draw_particules(targetIm, testIm, x_coordinates, y_coordinates, radius, sema
         test_tensor = torch.FloatTensor(testIm)
 
         for x, y, r in zip(x_coordinates, y_coordinates, radius):
-            y, x, r = int(y), int(x), int(r)
+            y, x, r = int(y), int(x), r
             rr, cc = np.ogrid[:target_tensor.shape[0], :target_tensor.shape[1]]
             circle = (rr - y) ** 2 + (cc - x) ** 2 <= r ** 2
             color = torch.mean(target_tensor[circle], dim=0)
@@ -45,7 +45,7 @@ class CustomEnv(gym.Env):
         self.target_path = targetImg_path
 
         self.action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(200, 200), dtype=np.uint8)
 
     def setup(self):
         try:
@@ -64,17 +64,14 @@ class CustomEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        x_pos, y_pos, radius = action
+        x_pos, y_pos = action
         x_pos = x_pos * self.target.shape[1]
         y_pos = y_pos * self.target.shape[0]
-        radius = 1 + radius * min(self.target.shape[:2]) / 2
-
-        x_pos = np.array([x_pos])
-        y_pos = np.array([y_pos])
-        radius_array = np.array([radius])
+        
+        radius = [self.find_radius(x_pos, y_pos)]
 
         try:
-            self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius_array, self.semaphore)
+            self.toile = Draw_particules(self.target, self.toile, [x_pos], [y_pos], radius, self.semaphore)
             if self.toile is None:
                 raise ValueError("Draw_particules returned None")
             next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
@@ -93,7 +90,46 @@ class CustomEnv(gym.Env):
             print(f"Exception during step: {e}")
             wandb.log({"step_exception": str(e)})
             return np.zeros(self.observation_space.shape), 0, True, {}
+    
+    def find_radius(self, x_pos, y_pos):
+        epsilon = 2
+        rad_plus = min(self.target.shape[:2]) / 2
+        rad_minus = 1
+        rad_mid = (rad_plus-rad_minus)/2
+        loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus])))
+        loss_minus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus])))
+        loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid])))
+
+        while np.abs(rad_plus-rad_minus)>epsilon:
+
+            if np.min([loss_plus, loss_mid, loss_minus]) == loss_plus:
+                swap = rad_mid
+                rad_mid += (rad_plus-rad_mid)/2
+                rad_minus = swap
+                loss_minus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus])))
+                loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid])))
+
+            elif np.min([loss_plus, loss_mid, loss_minus]) == loss_minus:
+                swap = rad_mid
+                rad_mid -= (rad_mid-rad_minus)/2
+                rad_plus = swap
+                loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus])))
+                loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid])))
+            else:
+                rad_minus += (rad_mid-rad_minus)/2
+                rad_plus -= (rad_plus-rad_mid)/2
+                loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus])))
+                loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus])))
+
+
+        if np.min([loss_plus, loss_mid, loss_minus]) == loss_plus:
+            return rad_plus
         
+        elif np.min([loss_plus, loss_mid, loss_minus]) == loss_mid:
+            return rad_mid
+        
+        else:
+            return rad_minus
 
     def render(self, mode='human'):
         pass

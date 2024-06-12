@@ -70,7 +70,7 @@ class Particles:
                 score.append(loss_minus)
         return np.array(radius), np.array(score)
 
-    def depth_map_distribuated_center_pos(self):
+    def depth_map_distributed_center_pos(self):
         depth_map = np.sum(np.abs(self.ds_target_img - self.ds_particle_img), axis = 2)/3
         max_depth, min_depth = np.max(depth_map), np.min(depth_map)
         depth_map = (depth_map - min_depth)/(max_depth - min_depth)
