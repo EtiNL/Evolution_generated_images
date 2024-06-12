@@ -56,8 +56,7 @@ class CustomEnv(gym.Env):
             self.previous_loss = self.init_loss
             print(f"{self.target_path} Goal loss = {self.init_loss * 0.1}")
             self.current_step = 0
-            self.init_state_divisor = np.max(np.abs(self.target - self.toile))
-            return np.sum(np.abs(self.target - self.toile), axis=2) / self.init_state_divisor
+            return np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
         except Exception as e:
             print(f"Exception during setup: {e}")
             wandb.log({"setup_exception": str(e)})
@@ -78,7 +77,7 @@ class CustomEnv(gym.Env):
             self.toile = Draw_particules(self.target, self.toile, x_pos, y_pos, radius_array, self.semaphore)
             if self.toile is None:
                 raise ValueError("Draw_particules returned None")
-            next_state = np.sum(np.abs(self.target - self.toile), axis=2) / self.init_state_divisor
+            next_state = np.sum(np.abs(self.target - self.toile), axis=2) / np.max(np.abs(self.target - self.toile))
             current_loss = loss(self.target, self.toile, self.semaphore)
             absolute_reward = self.previous_loss - current_loss
             proportional_reward = self.target_size*(self.previous_loss - current_loss)/(np.pi*int(radius)**2)
