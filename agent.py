@@ -17,6 +17,7 @@ class Agent:
         self.epsilon = epsilon_start
         self.epsilon_min = epsilon_end
         self.epsilon_decay = epsilon_decay
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def select_action(self, state):
         if random.random() < self.epsilon:
@@ -38,7 +39,7 @@ class Agent:
         states, actions, rewards, next_states, dones = zip(*experiences)
 
         # Convert lists to tensors efficiently
-        states = torch.FloatTensor(np.array(states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
+        states = torch.FloatTensor(np.array(states)).unsqueeze(1).to(torch.device(self.device))  # Shape: [batch_size, 1, 200, 200]
         actions = torch.FloatTensor(np.array(actions)).long()  # Convert to LongTensor for indexing
         rewards = torch.FloatTensor(np.array(rewards))  # Shape: [batch_size]
         next_states = torch.FloatTensor(np.array(next_states)).unsqueeze(1)  # Shape: [batch_size, 1, 200, 200]
