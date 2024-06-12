@@ -96,9 +96,9 @@ class CustomEnv(gym.Env):
         rad_plus = min(self.target.shape[:2]) / 2
         rad_minus = 1
         rad_mid = (rad_plus-rad_minus)/2
-        loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus])))
-        loss_minus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus])))
-        loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid])))
+        loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus]), self.semaphore), self.semaphore)
+        loss_minus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus]), self.semaphore), self.semaphore)
+        loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid]), self.semaphore), self.semaphore)
 
         while np.abs(rad_plus-rad_minus)>epsilon:
 
@@ -106,20 +106,32 @@ class CustomEnv(gym.Env):
                 swap = rad_mid
                 rad_mid += (rad_plus-rad_mid)/2
                 rad_minus = swap
-                loss_minus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus])))
-                loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid])))
+                
+                toile_minus = Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus]), self.semaphore)
+                loss_minus = loss(self.target, toile_minus, self.semaphore)
+                
+                toile_mid = Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid]), self.semaphore)
+                loss_mid = loss(self.target, toile_mid, self.semaphore)
 
             elif np.min([loss_plus, loss_mid, loss_minus]) == loss_minus:
                 swap = rad_mid
                 rad_mid -= (rad_mid-rad_minus)/2
                 rad_plus = swap
-                loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus])))
-                loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid])))
+                
+                toile_plus = Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus]), self.semaphore)
+                loss_plus = loss(self.target, toile_plus, self.semaphore)
+                
+                toile_mid = Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_mid]), self.semaphore)
+                loss_mid = loss(self.target, toile_mid, self.semaphore)
             else:
                 rad_minus += (rad_mid-rad_minus)/2
                 rad_plus -= (rad_plus-rad_mid)/2
-                loss_plus = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus])))
-                loss_mid = loss(self.target, Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus])))
+                
+                toile_plus = Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_plus]), self.semaphore)
+                loss_plus = loss(self.target, toile_plus, self.semaphore)
+                
+                toile_minus = Draw_particules(self.target, np.copy(self.toile), np.array([x_pos]), np.array([y_pos]), np.array([rad_minus]), self.semaphore)
+                loss_minus = loss(self.target, toile_minus, self.semaphore)
 
 
         if np.min([loss_plus, loss_mid, loss_minus]) == loss_plus:
