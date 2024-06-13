@@ -61,5 +61,5 @@ class Agent:
         loss.backward()
         self.optimizer.step()
 
-        if random.random() < 0.1:
+        if random.random() < 0.01:
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
