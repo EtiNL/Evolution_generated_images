@@ -11,7 +11,7 @@ class Agent:
         self.model = model if model else DQN_CNN(input_shape, action_dim).to(self.device)
         self.target_model = DQN_CNN(input_shape, action_dim).to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.9)
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.9)  # Example scheduler
         self.loss_fn = torch.nn.MSELoss()
         self.action_dim = action_dim
         self.gamma = gamma  # Discount factor
@@ -62,7 +62,7 @@ class Agent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.scheduler.step()  # Update the learning rate
+        self.scheduler.step()  # Update the learning rate after the optimizer step
 
         if random.random() < 0.01:
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
