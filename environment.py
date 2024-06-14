@@ -96,11 +96,12 @@ class CustomEnv(gym.Env):
             done = self.current_step >= 10_000 or current_loss <= 0.1 * self.init_loss
             if done:
                 if current_loss <= 0.1 * self.init_loss:
-                    reward += 100 
                     self.achievement_counter +=1
                     wandb.log({"goal achieved" : self.achievement_counter})
-                else: reward -=100
+                else:
+                    wandb.log({"goal achieved" : self.achievement_counter})
             return next_state, reward, done, {}
+        
         except Exception as e:
             print(f"Exception during step: {e}")
             wandb.log({"step_exception": str(e)})

@@ -41,7 +41,8 @@ def train(rank, env, agent, shared_model, target_model, replay_buffer, num_episo
                 "Total Reward": total_reward,
                 "Loss": env.previous_loss,
                 "Goal Loss": (env.init_loss * 0.1),
-                "Epsilon": agent.epsilon
+                "Epsilon": agent.epsilon,
+                "Learning Rate": agent.optimizer.param_groups[0]['lr']  # Log the learning rate
             })
         
             # Update the target model every `target_update_interval` episodes
